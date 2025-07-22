@@ -139,7 +139,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
   const render = async () => {
     try {
       const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/google-chrome-stable',
+        executablePath: process.env.CHROME_PATH,
         headless: true, args: ["--no-sandbox"]
       });
       const page = await browser.newPage();

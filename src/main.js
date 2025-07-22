@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron/main');
 const path = require('node:path');
+require('dotenv').config();
 
 try {
     require('electron-reloader')(module);
@@ -14,7 +15,7 @@ const createWindow = () => {
             nodeIntegration: true,
             worldSafeExecuteJavaScript: true,
             sandbox: false,
-            contextIsolation: false, 
+            contextIsolation: false,
         }
     })
     // win.webContents.openDevTools(); 
