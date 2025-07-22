@@ -27,6 +27,6 @@ var isResizing = false;
     isResizing = false;
   }
  
-  left.style.right = "650px";
-  right.style.width = "650px";
+  left.style.right = "40vw";
+  right.style.width = "40vw";
 })();
