@@ -1,0 +1,40 @@
+{
+  "name": "report-designer",
+  "version": "1.0.0",
+  "description": "Generic report designer",
+  "license": "ISC",
+  "author": "tofi lagman <tofilagman@gmail.com>",
+  "homepage": "r3al.org.ph",
+  "type": "commonjs",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.12",
+    "electron-reloader": "^1.2.3"
+  },
+  "build": {
+    "appId": "org.r3al.report-designer",
+    "productName": "Report Designer",
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@monaco-editor/loader": "^1.5.0", 
+    "bootstrap": "^5.3.7",
+    "jquery": "^3.7.1",
+    "monaco-editor": "^0.50.0", 
+    "popper.js": "^1.16.1"
+  }
+}

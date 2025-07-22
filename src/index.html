@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Report Designer</title>
+    <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.css">
+    <link rel="stylesheet" href="./main.css">
+</head>
+
+<body>
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <label>Featured</label>
+            <div>
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    <button type="button" class="btn btn-success">Preview</button>
+                </div>
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    <button type="button" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-primary">Open</button>
+                    <button type="button" class="btn btn-danger">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="container">
+            <div class="main-height" id="left_panel">
+                <div class="inner-content">
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="home-tab" data-bs-toggle="tab"
+                                data-bs-target="#home-tab-pane" type="button" role="tab" aria-controls="home-tab-pane"
+                                aria-selected="true">Designer</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="profile-tab" data-bs-toggle="tab"
+                                data-bs-target="#profile-tab-pane" type="button" role="tab"
+                                aria-controls="profile-tab-pane" aria-selected="false">Data Source</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="contact-tab" data-bs-toggle="tab"
+                                data-bs-target="#contact-tab-pane" type="button" role="tab"
+                                aria-controls="contact-tab-pane" aria-selected="false">Styles</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="disabled-tab" data-bs-toggle="tab"
+                                data-bs-target="#disabled-tab-pane" type="button" role="tab"
+                                aria-controls="disabled-tab-pane" aria-selected="false">Scripts</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel"
+                            aria-labelledby="home-tab" tabindex="0">
+                            <div id="code-designer" class="code-editor"></div>
+                        </div>
+                        <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
+                            tabindex="0">
+                        <div id="data-designer" class="code-editor"></div>
+                        </div>
+                        <div class="tab-pane fade" id="contact-tab-pane" role="tabpanel" aria-labelledby="contact-tab"
+                            tabindex="0">
+                        <div id="style-designer" class="code-editor"></div>
+                    </div>
+                        <div class="tab-pane fade" id="disabled-tab-pane" role="tabpanel" aria-labelledby="disabled-tab"
+                            tabindex="0">
+                        <div id="script-designer" class="code-editor"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="main-height" id="right_panel">
+                <div id="drag"></div>
+                <div class="inner-content">
+                    <ul class="nav nav-tabs" id="myTab2" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="preview-tab" data-bs-toggle="tab"
+                                data-bs-target="#preview-tab-pane" type="button" role="tab"
+                                aria-controls="preview-tab-pane" aria-selected="true">Preview</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-tab-pane"
+                                type="button" role="tab" aria-controls="logs-tab-pane"
+                                aria-selected="false">Logs</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent2">
+                        <div class="tab-pane fade show active" id="preview-tab-pane" role="tabpanel"
+                            aria-labelledby="preview-tab" tabindex="0">
+                        <iframe src="libs/pdfjs-2.9.359-dist/web/viewer.html" class="pdf-viewer" width="100%" height="100%"></iframe>
+                    </div>
+                        <div class="tab-pane fade" id="logs-tab-pane" role="tabpanel" aria-labelledby="logs-tab"
+                            tabindex="0">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="../node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="./scripts/window-resize.js"></script>
+    <script src="./renderer.js"></script> 
+</body>
+
+</html>

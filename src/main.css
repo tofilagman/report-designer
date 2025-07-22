@@ -1,0 +1,56 @@
+
+.main-height {
+    min-height: 92vh;
+}
+
+#container {
+  position: relative;
+}
+
+.inner-content{
+    position: relative;
+}
+
+#left_panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 100px; 
+}
+
+#right_panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 45vw; 
+}
+ 
+#drag {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: w-resize;
+}
+
+#drag::after {
+    content: '';
+    background-color: #ccc;
+    position: absolute;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+}
+
+.code-editor {
+  border: 1px solid #ccc;
+  height: 90vh;
+}
+
+#preview-tab-pane{
+  height: 89vh;
+}
