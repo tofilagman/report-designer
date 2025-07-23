@@ -1,10 +1,16 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron/main');
+const { clipboard } = require('electron');
+
 const path = require('node:path');
 require('dotenv').config();
 
-try {
+const isDebug = () => {
+    return process.argv.filter(x => x == '--debug').length > 0;
+}
+
+if (isDebug()) {
     require('electron-reloader')(module);
-} catch { }
+}
 
 const createWindow = () => {
     const win = new BrowserWindow({
@@ -12,13 +18,14 @@ const createWindow = () => {
         height: 600,
         autoHideMenuBar: true,
         webPreferences: {
-            nodeIntegration: true,
-            worldSafeExecuteJavaScript: true,
+            nodeIntegration: true, 
             sandbox: false,
-            contextIsolation: false,
+            contextIsolation: false
         }
     })
-    // win.webContents.openDevTools(); 
+    if (isDebug()) {
+        win.webContents.openDevTools();
+    }
     win.maximize();
     win.loadFile('src/index.html');
 }
@@ -43,7 +50,7 @@ ipcMain.handle('save-file', async (event, arg) => {
     return dialog.showSaveDialogSync({
         title: 'Save Pdf Report',
         properties: ['showOverwriteConfirmation'],
-        filters: { name: 'Z Report', extensions: ['zrpt'] },
+        filters: [{ name: 'Z Report', extensions: ['zrpt'] }],
     });
 });
 
@@ -51,6 +58,18 @@ ipcMain.handle('open-file', async (event, arg) => {
     return dialog.showOpenDialogSync({
         title: 'Open Pdf Report',
         properties: ['openFile'],
-        filters: { name: 'Z Report', extensions: ['zrpt'] },
+        filters: [{ name: 'Z Report', extensions: ['zrpt'] }],
     });
 });
+
+ipcMain.handle('open-resource-file', async (event, arg) => {
+    return dialog.showOpenDialogSync({
+        title: 'Open Image Files',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Jpeg Files', extensions: ['jpg', 'jpeg'] }, { name: 'PNG Files', extensions: ['png'] }],
+    });
+});
+
+ipcMain.handle('clipboard', async (event, arg) => {
+    clipboard.writeText(arg);
+}); 

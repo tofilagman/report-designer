@@ -8,7 +8,7 @@
   "type": "commonjs",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "electron . -- --debug",
     "dist": "electron-builder --linux"
   },
   "devDependencies": {
@@ -31,9 +31,10 @@
     }
   },
   "dependencies": {
-    "dotenv": "^17.2.0",
+    "@fortawesome/fontawesome-free": "^7.0.0",
     "@monaco-editor/loader": "^1.5.0",
     "bootstrap": "^5.3.7",
+    "dotenv": "^17.2.0",
     "jquery": "^3.7.1",
     "lz-string": "^1.5.0",
     "monaco-editor": "^0.50.0",

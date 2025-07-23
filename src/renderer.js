@@ -6,6 +6,7 @@ const fs = require('fs');
 const lz = require('lz-string');
 const { AppEventService, EventData } = require('./scripts/event-service');
 const { ipcRenderer } = require('electron');
+const { randomUUID } = require('crypto');
 
 
 function ensureFirstBackSlash(str) {
@@ -54,6 +55,8 @@ const DocumentTypes = [
   { id: 29, name: "Tabloid" },
   { id: 26, name: "Ledger" }
 ];
+
+let assets = [];
 
 const scriptInitData = `
 Handlebars.registerHelper('currentDate', function () {
@@ -131,9 +134,28 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         save();
         break;
     }
-
   });
 
+  $('.app-btn-resource').on('click', (ev) => {
+    ev.preventDefault();
+
+    let aa = $(ev.target);
+    if (['svg', 'path'].indexOf($(ev.target).prop('nodeName')) !== -1) {
+      aa = $(ev.target).closest('button');
+    }
+
+    switch (aa.prop('id')) {
+      case 'btn-resource-add':
+        addResource();
+        break;
+      case 'btn-resource-apply':
+        console.log('apply');
+        break;
+      case 'btn-resource-delete':
+        console.log('delete');
+        break
+    }
+  })
 
 
   const render = async () => {
@@ -176,6 +198,14 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       if (isNotNullorEmpty(data))
         await page.addScriptTag({ type: 'text/javascript', content: `window.processContext = ${data}` });
+
+      if (assets.length > 0) {
+        const ass = assets.reduce((acc, item) => {
+          acc[item.id] = item.data;
+          return acc;
+        });
+        await page.addScriptTag({ type: "text/javascript", content: `window.resourceContext = ${ass}` });
+      }
 
       if (isNotNullorEmpty(script))
         await page.addScriptTag({ type: 'text/javascript', content: script });
@@ -225,6 +255,8 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       editors.style.setValue('');
       editors.script.setValue(scriptInitData);
       projectPath = null;
+      assets = [];
+      replenishAssets();
     }
   }
 
@@ -234,13 +266,15 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       code: editors.code.getValue(),
       data: editors.data.getValue(),
       style: editors.style.getValue(),
-      script: editors.script.getValue()
+      script: editors.script.getValue(),
+      assets: assets || []
     }
 
     const fdata = lz.compressToBase64(JSON.stringify(form));
 
     if (projectPath != null) {
       fs.writeFileSync(projectPath, fdata, 'utf-8');
+      alert('Project has been saved!');
     } else {
       const result = await ipcRenderer.invoke('save-file');
       if (result) {
@@ -264,10 +298,10 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
         const nc = fs.readFileSync(npc, 'utf-8');
         const fdata = JSON.parse(lz.decompressFromBase64(nc));
- 
+
         aTitle.text(fdata.name);
         fort.val(fdata.landscape ? 0 : 1);
-        ford.val(DocumentTypes.find(x=> x.name == fdata.documentType).id);
+        ford.val(DocumentTypes.find(x => x.name == fdata.documentType).id);
         fname.val(fdata.name);
         mleft.val(fdata.margin.left);
         mright.val(fdata.margin.right);
@@ -278,7 +312,10 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         editors.style.setValue(fdata.style);
         editors.script.setValue(fdata.script);
 
+        assets = fdata.assets || [];
         projectPath = npc;
+
+        replenishAssets();
       }
     } catch (ex) {
       alert(ex.message);
@@ -313,6 +350,30 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     }
   }
 
+  const addResource = async () => {
+    try {
+      const result = await ipcRenderer.invoke('open-resource-file');
+      if (result) {
+        for (let npc of result) {
+
+          const mfile = fs.readFileSync(npc);
+          const base64 = mfile.toString('base64');
+
+          const dataUri = `data:image/${path.extname(npc).slice(1)};base64,${base64}`;
+
+          assets.push({
+            data: dataUri,
+            id: randomUUID()
+          });
+        }
+
+        replenishAssets();
+      }
+    } catch (ex) {
+      alert(ex.message);
+    }
+  }
+
   initForm();
 }())
 
@@ -334,3 +395,53 @@ const uint8ToBase64 = (arr) => {
     String.fromCharCode.apply(null, arr)
   );
 };
+
+const replenishAssets = () => {
+  const container = $('.app-img-container');
+  container.empty();
+
+  for (let aa of assets) {
+    container.append(assetItem(aa));
+  }
+
+  $('.app-btn-resource', container).on('click', async (ev) => {
+    ev.preventDefault();
+
+    let aa = $(ev.target);
+    if (['svg', 'path'].indexOf($(ev.target).prop('nodeName')) !== -1) {
+      aa = $(ev.target).closest('button');
+    }
+
+    const uid = aa.attr('uid');
+
+    switch (aa.prop('id')) {
+      case 'btn-resource-apply':
+        await ipcRenderer.invoke('clipboard', `{{resource '${uid}'}}`);
+        alert('Resource has been copied to clipboard');
+        break;
+      case 'btn-resource-delete':
+        const rr = confirm('Delete this resource?');
+        if (rr) {
+          for (var i = assets.length - 1; i >= 0; --i) {
+            if (assets[i].id == uid) {
+              assets.splice(i, 1);
+            }
+          }
+          $(`.app-img-item[uid=${uid}]`).remove();
+        }
+        break
+    }
+  });
+}
+
+const assetItem = (item) => {
+  return $(`
+    <div class="app-img-item col-md-3 mb-3" uid="${item.id}">
+        <img src="${item.data}" class="img-thumbnail rounded mx-auto" alt="...">
+        <div class="img-action-group">
+            <button uid="${item.id}" class="app-btn-resource btn btn-secondary" id="btn-resource-apply" href="javascript:;"><i class="fas fa-code text-primary"></i></button>
+            <button uid="${item.id}" class="app-btn-resource btn btn-secondary" id="btn-resource-delete" href="javascript:;"><i class="fas fa-trash text-danger"></i></button>
+        </div>
+    </div> 
+    `);
+}

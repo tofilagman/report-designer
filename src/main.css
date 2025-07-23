@@ -1,14 +1,13 @@
-
 .main-height {
-    min-height: 92vh;
+  min-height: 92vh;
 }
 
 #container {
   position: relative;
 }
 
-.inner-content{
-    position: relative;
+.inner-content {
+  position: relative;
 }
 
 #left_panel {
@@ -16,7 +15,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  right: 100px; 
+  right: 100px;
 }
 
 #right_panel {
@@ -24,9 +23,9 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 45vw; 
+  width: 45vw;
 }
- 
+
 #drag {
   position: absolute;
   left: -4px;
@@ -37,13 +36,13 @@
 }
 
 #drag::after {
-    content: '';
-    background-color: #ccc;
-    position: absolute;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    cursor: ew-resize;
+  content: '';
+  background-color: #ccc;
+  position: absolute;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  cursor: ew-resize;
 }
 
 .code-editor {
@@ -51,6 +50,16 @@
   height: 90vh;
 }
 
-#preview-tab-pane{
+#preview-tab-pane {
   height: 89vh;
+}
+
+.app-img-item {
+  position: relative;
+}
+
+.img-action-group {
+  bottom: 8px;
+  position: absolute;
+  right: 20px;
 }
