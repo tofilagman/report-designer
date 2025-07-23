@@ -199,12 +199,12 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       if (isNotNullorEmpty(data))
         await page.addScriptTag({ type: 'text/javascript', content: `window.processContext = ${data}` });
 
-      if (assets.length > 0) {
-        const ass = assets.reduce((acc, item) => {
-          acc[item.id] = item.data;
-          return acc;
-        });
-        await page.addScriptTag({ type: "text/javascript", content: `window.resourceContext = ${ass}` });
+      if (assets.length > 0) { 
+        const ass = {};
+        for(let g of assets) {
+          ass[g.id] = g.data;
+        } 
+        await page.addScriptTag({ type: "text/javascript", content: `window.resourceContext = ${ JSON.stringify(ass) }` });
       }
 
       if (isNotNullorEmpty(script))
@@ -217,6 +217,9 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       await page.evaluate(async () => {
         await document.fonts.ready;
       });
+
+      // const gg = await page.content();
+      // fs.writeFileSync('smaple.html', gg);
 
       const pageTitle = await page.evaluate(() => {
         return window.processHandlebar();

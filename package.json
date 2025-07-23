@@ -9,7 +9,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron . -- --debug",
-    "dist": "electron-builder --linux"
+    "dist": "electron-builder --linux",
+    "dist:win" : "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^37.2.3",
@@ -20,13 +21,22 @@
     "appId": "org.r3al.report-designer",
     "productName": "Report Designer",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "resources"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "icon": "",
+      "icon": "dist/icons/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "dist/icons/icon.ico",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
