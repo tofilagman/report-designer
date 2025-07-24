@@ -20,3 +20,5 @@ create environment file .env alongside the executable and write the config below
 CHROME_PATH=/usr/bin/google-chrome-stable
 ```
 
+file is save as <filename>.zrpt which used BSON encoding
+

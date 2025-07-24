@@ -7,6 +7,7 @@ const lz = require('lz-string');
 const { AppEventService, EventData } = require('./scripts/event-service');
 const { ipcRenderer } = require('electron');
 const { randomUUID } = require('crypto');
+const { BSON, EJSON } = require('bson');
 
 
 function ensureFirstBackSlash(str) {
@@ -131,7 +132,8 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         open();
         break;
       case 'btn-save':
-        save();
+      case 'btn-save-as':
+        save($(ev.target).prop('id') == 'btn-save-as');
         break;
     }
   });
@@ -297,7 +299,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     }
   }
 
-  const save = async () => {
+  const save = async (saveAs) => {
     const form = {
       ...getForm(),
       code: editors.code.getValue(),
@@ -306,11 +308,11 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       script: editors.script.getValue(),
       assets: assets || []
     }
+   
+    const fdata = BSON.serialize(form);
 
-    const fdata = lz.compressToBase64(JSON.stringify(form));
-
-    if (projectPath != null) {
-      fs.writeFileSync(projectPath, fdata, 'utf-8');
+    if (projectPath != null && !saveAs) {
+      fs.writeFileSync(projectPath, fdata);
       alert('Project has been saved!');
     } else {
       const result = await ipcRenderer.invoke('save-file');
@@ -318,7 +320,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         const ext = path.extname(result) || '.zrpt';
         const filename = path.parse(result);
         const fnmaa = path.join(filename.dir, filename.name + ext);
-        fs.writeFileSync(fnmaa, fdata, 'utf-8');
+        fs.writeFileSync(fnmaa, fdata);
         projectPath = fnmaa;
       }
     }
@@ -333,8 +335,8 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
           throw new Error('Invalid Z Report file, accepts .zrpt files only');
         }
 
-        const nc = fs.readFileSync(npc, 'utf-8');
-        const fdata = JSON.parse(lz.decompressFromBase64(nc));
+        const nc = fs.readFileSync(npc); 
+        const fdata = BSON.deserialize(nc);
 
         aTitle.text(fdata.name);
         fort.val(fdata.landscape ? 0 : 1);

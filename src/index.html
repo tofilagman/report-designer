@@ -20,7 +20,17 @@
                 <div class="btn-group" role="group" aria-label="Basic example">
                     <button type="button" class="btn btn-primary app-btn" id="btn-create">Create</button>
                     <button type="button" class="btn btn-primary app-btn" id="btn-open">Open</button>
-                    <button type="button" class="btn btn-danger app-btn" id="btn-save">Save</button>
+                    <!-- <button type="button" class="btn btn-danger app-btn" id="btn-save">Save</button> -->
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-danger app-btn" id="btn-save">Save</button>
+                        <button type="button" class="btn btn-danger dropdown-toggle dropdown-toggle-split"
+                            data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu text-bg-danger">
+                            <li><a class="dropdown-item text-bg-danger app-btn" id="btn-save-as" href="#">Save as</a></li> 
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -30,8 +40,8 @@
                 <div class="inner-content">
                     <ul class="nav nav-tabs" id="myTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane"
-                                type="button" role="tab" aria-controls="home-tab-pane"
+                            <button class="nav-link active" id="home-tab" data-bs-toggle="tab"
+                                data-bs-target="#home-tab-pane" type="button" role="tab" aria-controls="home-tab-pane"
                                 aria-selected="true">Designer</button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -61,8 +71,8 @@
                         </li>
                     </ul>
                     <div class="tab-content" id="myTabContent">
-                        <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel" aria-labelledby="home-tab"
-                            tabindex="0">
+                        <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel"
+                            aria-labelledby="home-tab" tabindex="0">
                             <div id="code-designer" class="code-editor"></div>
                         </div>
                         <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
@@ -77,17 +87,18 @@
                             tabindex="0">
                             <div id="script-designer" class="code-editor"></div>
                         </div>
-                        <div class="tab-pane fade" id="asset-tab-pane" role="tabpanel"
-                            aria-labelledby="asset-tab" tabindex="0">
+                        <div class="tab-pane fade" id="asset-tab-pane" role="tabpanel" aria-labelledby="asset-tab"
+                            tabindex="0">
                             <div class="card-header d-flex align-items-center justify-content-between">
                                 <label></label>
                                 <div>
                                     <div class="btn-group" role="group" aria-label="Basic example">
-                                        <button type="button" class="btn btn-success app-btn-resource" id="btn-resource-add">Add</button>
+                                        <button type="button" class="btn btn-success app-btn-resource"
+                                            id="btn-resource-add">Add</button>
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body row app-img-container"> 
+                            <div class="card-body row app-img-container">
                             </div>
                         </div>
                         <div class="tab-pane fade" id="general-tab-pane" role="tabpanel" aria-labelledby="general-tab"
@@ -161,8 +172,8 @@
                 </div>
             </div>
         </div>
-    </div>
-    <script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+    </div> 
+    <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script> 
     <script src="./scripts/window-resize.js"></script>
     <script src="../node_modules/@fortawesome/fontawesome-free/js/all.min.js"></script>
     <script src="./renderer.js"></script>
