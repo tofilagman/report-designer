@@ -155,7 +155,25 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         console.log('delete');
         break
     }
-  })
+  });
+
+  $('.nav-link').on('click', (ev) => {
+    ev.preventDefault();
+    switch ($(ev.target).prop('id')) {
+      case 'home-tab':
+        editors.code.layout();
+        break;
+      case 'profile-tab':
+        editors.data.layout();
+        break;
+      case 'contact-tab':
+        editors.style.layout();
+        break
+      case 'disabled-tab':
+        editors.script.layout();
+        break
+    }
+  });
 
 
   const render = async () => {
@@ -165,6 +183,22 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         headless: true, args: ["--no-sandbox"]
       });
       const page = await browser.newPage();
+
+      // Catch console messages
+      page.on('console', async msg => {
+        const args = await Promise.all(msg.args().map(arg =>
+          arg.executionContext().evaluate(arg => {
+            if (arg instanceof Error) return arg.message;
+            return arg;
+          }, arg)
+        ));
+        console.log(...args);
+      });
+
+      // Catch page errors
+      page.on('pageerror', err => {
+        console.error(`Page error: ${err.toString()}`);
+      });
 
       const default_style = `
     body {
@@ -199,12 +233,12 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       if (isNotNullorEmpty(data))
         await page.addScriptTag({ type: 'text/javascript', content: `window.processContext = ${data}` });
 
-      if (assets.length > 0) { 
+      if (assets.length > 0) {
         const ass = {};
-        for(let g of assets) {
+        for (let g of assets) {
           ass[g.id] = g.data;
-        } 
-        await page.addScriptTag({ type: "text/javascript", content: `window.resourceContext = ${ JSON.stringify(ass) }` });
+        }
+        await page.addScriptTag({ type: "text/javascript", content: `window.resourceContext = ${JSON.stringify(ass)}` });
       }
 
       if (isNotNullorEmpty(script))
@@ -245,7 +279,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       window.pdf.open(baseData);
     } catch (ex) {
-      alert(ex.message);
+      alert(ex.toString());
     }
   }
 
