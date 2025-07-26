@@ -1,5 +1,8 @@
 package org.r3al.report_server.models
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class TemplateModel (
     val name: String,
     val landscape: Boolean,

@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron/main');
 const { clipboard } = require('electron');
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
 
 const path = require('node:path');
 require('dotenv').config();
@@ -18,7 +21,7 @@ const createWindow = () => {
         height: 600,
         //autoHideMenuBar: true,
         webPreferences: {
-            nodeIntegration: true, 
+            nodeIntegration: true,
             sandbox: false,
             contextIsolation: false
         }
@@ -72,4 +75,34 @@ ipcMain.handle('open-resource-file', async (event, arg) => {
 
 ipcMain.handle('clipboard', async (event, arg) => {
     clipboard.writeText(arg);
-}); 
+});
+
+ipcMain.handle('alert', async (event, arg) => {
+    return dialog.showMessageBoxSync({ message: arg });
+});
+
+ipcMain.handle('upload', async (event, url, mpath, mfile) => {
+
+    const instance = axios.create({
+        baseURL: url
+    });
+
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(mfile));
+
+    try {
+        await instance.post(mpath, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            },
+            contentType: false,
+            processData: false,
+            onUploadProgress: (progressEvent) => {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                console.log(`Upload Progress: ${percentCompleted}%`); 
+            },
+        });
+    } catch (ex) {
+        throw new Error(`${ex.response.status}: ${ex.response.data}`);
+    }
+});

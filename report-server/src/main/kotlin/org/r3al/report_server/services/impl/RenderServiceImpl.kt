@@ -7,14 +7,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.ruiyun.jvppeteer.api.core.Browser
 import com.ruiyun.jvppeteer.api.core.Page
 import com.ruiyun.jvppeteer.cdp.core.Puppeteer
-import com.ruiyun.jvppeteer.cdp.entities.FetcherOptions
-import com.ruiyun.jvppeteer.cdp.entities.FrameAddScriptTagOptions
-import com.ruiyun.jvppeteer.cdp.entities.GoToOptions
-import com.ruiyun.jvppeteer.cdp.entities.LaunchOptions
-import com.ruiyun.jvppeteer.cdp.entities.PDFMargin
-import com.ruiyun.jvppeteer.cdp.entities.PDFOptions
-import com.ruiyun.jvppeteer.cdp.entities.PaperFormats
-import com.ruiyun.jvppeteer.common.PuppeteerLifeCycle
+import com.ruiyun.jvppeteer.cdp.entities.*
 import org.bson.Document
 import org.bson.RawBsonDocument
 import org.r3al.report_server.components.GlobalDataManager
@@ -22,7 +15,9 @@ import org.r3al.report_server.models.TemplateModel
 import org.r3al.report_server.services.RenderService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
-import java.util.Base64
+import org.springframework.web.multipart.MultipartFile
+import java.io.FileOutputStream
+import java.util.*
 import kotlin.io.path.Path
 
 
@@ -64,6 +59,16 @@ class RenderServiceImpl : RenderService {
         val pdf = plot(tmpl, data)
 
         return pdf
+    }
+
+    override fun uploadTemplate(file: MultipartFile) {
+        val template = Path(reportPath, file.originalFilename!!).toFile()
+
+        if(template.exists())
+            template.delete()
+
+        val bts = file.bytes
+        template.writeBytes(bts)
     }
 
     private fun plot(template: TemplateModel, data: String): String {

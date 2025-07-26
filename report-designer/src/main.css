@@ -63,3 +63,20 @@
   position: absolute;
   right: 20px;
 }
+
+
+.loading-overlay-content {
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 1.15em;
+  font-weight: bold;
+  text-align: center;
+  display: table-cell;
+  vertical-align: middle;
+  top: 50vh;
+  left: 45vw;
+  position: absolute;
+  display: none;
+}
+
+ 

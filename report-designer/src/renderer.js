@@ -8,7 +8,8 @@ const { AppEventService, EventData } = require('./scripts/event-service');
 const { ipcRenderer } = require('electron');
 const { randomUUID } = require('crypto');
 const { BSON, EJSON } = require('bson');
-
+const axios = require('axios');
+ 
 
 function ensureFirstBackSlash(str) {
   return str.length > 0 && str.charAt(0) !== '/'
@@ -111,6 +112,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
   const mright = $('#mright');
   const mtop = $('#mtop');
   const mbottom = $('#mbottom');
+  const fdepUrl = $('#fdepaddr');
 
   $.each(OrientationTypes, (idx, itm) => { fort.append(new Option(itm.name, itm.id)); });
   $.each(DocumentTypes, (idx, itm) => { ford.append(new Option(itm.name, itm.id)); });
@@ -134,6 +136,12 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       case 'btn-save':
       case 'btn-save-as':
         save($(ev.target).prop('id') == 'btn-save-as');
+        break;
+      case 'btn-test-connect':
+        testConnectToServer();
+        break;
+      case 'btn-publish':
+        publish();
         break;
     }
   });
@@ -281,7 +289,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       window.pdf.open(baseData);
     } catch (ex) {
-      alert(ex.toString());
+      await msgBox(ex.toString());
     }
   }
 
@@ -299,21 +307,23 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     }
   }
 
-  const save = async (saveAs) => {
+  const save = async (saveAs, suppressNotification) => {
     const form = {
       ...getForm(),
       code: editors.code.getValue(),
       data: editors.data.getValue(),
       style: editors.style.getValue(),
       script: editors.script.getValue(),
-      assets: assets || []
+      assets: assets || [],
     }
-   
+
     const fdata = BSON.serialize(form);
 
     if (projectPath != null && !saveAs) {
       fs.writeFileSync(projectPath, fdata);
-      alert('Project has been saved!');
+      if (suppressNotification)
+        return;
+      await msgBox('Project has been saved!');
     } else {
       const result = await ipcRenderer.invoke('save-file');
       if (result) {
@@ -335,7 +345,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
           throw new Error('Invalid Z Report file, accepts .zrpt files only');
         }
 
-        const nc = fs.readFileSync(npc); 
+        const nc = fs.readFileSync(npc);
         const fdata = BSON.deserialize(nc);
 
         aTitle.text(fdata.name);
@@ -351,13 +361,14 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         editors.style.setValue(fdata.style);
         editors.script.setValue(fdata.script);
 
+        fdepUrl.val(fdata.deploymentUrl);
         assets = fdata.assets || [];
         projectPath = npc;
 
         replenishAssets();
       }
     } catch (ex) {
-      alert(ex.message);
+      await msgBox(ex.message);
     }
   };
 
@@ -373,6 +384,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     mright.val(20);
     mtop.val(20);
     mbottom.val(20);
+    fdepUrl.val("http://localhost:8088");
   }
 
   const getForm = () => {
@@ -385,7 +397,8 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         right: mright.val() || 20,
         top: mtop.val() || 20,
         bottom: mbottom.val() || 20
-      }
+      },
+      deploymentUrl: fdepUrl.val() || null
     }
   }
 
@@ -409,13 +422,64 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         replenishAssets();
       }
     } catch (ex) {
-      alert(ex.message);
+      await msgBox(ex.message);
+    }
+  }
+
+  const testConnectToServer = async () => {
+    try {
+      const url = fdepUrl.val();
+
+      if (isNullorEmpty(url))
+        throw new Error('Deployment url is not defined');
+
+      const instance = axios.create({
+        baseURL: url
+      });
+
+      showLoading('Test connection');
+
+      await instance.get('/template');
+
+      await msgBox('Connected');
+    } catch (ex) {
+      await msgBox(ex.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  const publish = async () => {
+    try {
+      if (isNullorEmpty(projectPath))
+        throw new Error('Save the project first!');
+
+      const url = fdepUrl.val();
+
+      if (isNullorEmpty(url))
+        throw new Error('Deployment url is not defined');
+ 
+      //save first
+      await save(false, true);
+
+      showLoading('Publishing');
+ 
+      await ipcRenderer.invoke('upload', url, '/template/publish', projectPath);
+
+      await msgBox('Completed');
+    } catch (ex) {
+      await msgBox(ex.message);
+    } finally {
+      hideLoading();
     }
   }
 
   initForm();
 }())
 
+ipcRenderer.on('upload-progress', (ev, args)=> {
+  console.log(args);
+})
 
 const isNullorEmpty = (data) => {
   return data == null || data == undefined || data == ''
@@ -456,7 +520,7 @@ const replenishAssets = () => {
     switch (aa.prop('id')) {
       case 'btn-resource-apply':
         await ipcRenderer.invoke('clipboard', `{{resource '${uid}'}}`);
-        alert('Resource has been copied to clipboard');
+        await msgBox('Resource has been copied to clipboard');
         break;
       case 'btn-resource-delete':
         const rr = confirm('Delete this resource?');
@@ -484,3 +548,21 @@ const assetItem = (item) => {
     </div> 
     `);
 }
+
+const showLoading = (message) => {
+  $('body').waitMe({
+    effect: 'rotateplane',
+    bg: 'rgba(255,255,255,0.7)',
+    color: '#000',
+    maxSize: '',
+    waitTime: -1,
+    textPos: 'vertical',
+    text: message
+  });
+}
+
+const hideLoading = (message) => {
+  $('body').waitMe('hide');
+}
+
+const msgBox = async (msg) => await ipcRenderer.invoke('alert', msg);
