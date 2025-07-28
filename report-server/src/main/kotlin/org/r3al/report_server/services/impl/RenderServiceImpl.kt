@@ -44,7 +44,7 @@ class RenderServiceImpl : RenderService {
     }
 
     override fun renderData(templateName: String, data: String): String {
-        val template = Path(reportPath, templateName).toFile()
+        val template = Path(reportPath, "$templateName.zrpt").toFile()
 
         if (!template.exists())
             throw Error("Requested template doesn't exists")
