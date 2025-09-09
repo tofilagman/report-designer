@@ -1,0 +1,18 @@
+services:
+  report:
+    image: tofilagman/report-server:latest
+    restart: always 
+    pull_policy: always
+    ports:
+      - "8088:8088"
+    expose:
+      - '8088'
+    environment:
+      TZ: Asia/Manila
+      JAVA_OPTS: >
+        -Xms1024m
+        -Xmx2048m
+        -Dspring.profiles.active=production
+        -Dapp.path.temp=/app/temp
+    volumes:
+      - ../files:/app/temp:Z

@@ -32,6 +32,19 @@ run docker-compose.yml
 copy libs folder to temp
 if needed, from temp/linux*, extract the chrome package
 ```
+### alternative Dokploy
+
+in dokploy service. create using compose and copy the Dokploy.txt
+
+goto to created service folder
+```bash
+cd /etc/dokploy/compose/reportserver-report-b0ruel/files
+sudo chmod 777 /etc/dokploy/compose/reportserver-report-b0ruel/files
+mkdir report
+cp libs /etc/dokploy/compose/reportserver-report-b0ruel/files/
+```
+
+
 
 #### Get Request
 ```curl
