@@ -58,7 +58,7 @@ curl --request GET \
 #### Post Request
 ```curl
 curl --request POST \
-  --url http://localhost:8088/render/tpl-issuance-history.zrpt \
+  --url http://localhost:8088/render/tpl-issuance-history \
   --header 'accept: text/plain' \
   --header 'content-type: application/json' \
   --data '<json data here>'
