@@ -37,14 +37,13 @@ if needed, from temp/linux*, extract the chrome package
 in dokploy service. create using compose and copy the Dokploy.txt
 
 goto to created service folder
+- update the libs files if your local libs has custom modification
 ```bash
 cd /etc/dokploy/compose/reportserver-report-b0ruel/files
 sudo chmod 777 /etc/dokploy/compose/reportserver-report-b0ruel/files
 mkdir report
 cp libs /etc/dokploy/compose/reportserver-report-b0ruel/files/
 ```
-
-
 
 #### Get Request
 ```curl
@@ -55,10 +54,19 @@ curl --request GET \
 - make sure tpl-issuance-history.zrpt exists in temp/report
 - make sure ppp.json exists in temp/data
 
-#### Post Request
+#### Post Request (Base64 data)
 ```curl
 curl --request POST \
-  --url http://localhost:8088/render/tpl-issuance-history \
+  --url http://localhost:8088/render/text/tpl-issuance-history \
+  --header 'accept: text/plain' \
+  --header 'content-type: application/json' \
+  --data '<json data here>'
+```
+
+#### Post Request (Pdf Inline data)
+```curl
+curl --request POST \
+  --url http://localhost:8088/render/pdf/tpl-issuance-history \
   --header 'accept: text/plain' \
   --header 'content-type: application/json' \
   --data '<json data here>'
