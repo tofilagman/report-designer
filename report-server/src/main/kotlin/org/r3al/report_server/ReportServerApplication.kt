@@ -33,6 +33,9 @@ class ReportServerApplication {
 		val revisionInfo = Puppeteer.downloadBrowser(options)
 		dataManager.executablePath = revisionInfo.executablePath
 		logger.info("Browser ready: ${revisionInfo.revision}")
+
+
+
 	}
 }
 

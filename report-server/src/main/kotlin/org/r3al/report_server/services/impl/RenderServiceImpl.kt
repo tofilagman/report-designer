@@ -14,8 +14,10 @@ import org.r3al.report_server.components.GlobalDataManager
 import org.r3al.report_server.models.TemplateModel
 import org.r3al.report_server.services.RenderService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import java.io.File
 import java.io.FileOutputStream
 import java.util.*
 import kotlin.io.path.Path
@@ -34,7 +36,7 @@ class RenderServiceImpl : RenderService {
     @Autowired
     lateinit var dataManager: GlobalDataManager
 
-    override fun render(templateName: String, dataId: String): String {
+    override fun render(templateName: String, dataId: String): ByteArray {
         val data = Path(dataPath, dataId).toFile()
 
         if (!data.exists())
@@ -43,7 +45,7 @@ class RenderServiceImpl : RenderService {
         return renderData(templateName, data.readText())
     }
 
-    override fun renderData(templateName: String, data: String): String {
+    override fun renderData(templateName: String, data: String): ByteArray {
         val template = Path(reportPath, "$templateName.zrpt").toFile()
 
         if (!template.exists())
@@ -62,16 +64,23 @@ class RenderServiceImpl : RenderService {
     }
 
     override fun uploadTemplate(file: MultipartFile) {
+        val folder = File(reportPath)
+        if (!folder.exists()) {
+            if (!folder.mkdir()) {
+                throw Error("Path $reportPath doesn't exists and couldn't created")
+            }
+        }
+
         val template = Path(reportPath, file.originalFilename!!).toFile()
 
-        if(template.exists())
+        if (template.exists())
             template.delete()
 
         val bts = file.bytes
         template.writeBytes(bts)
     }
 
-    private fun plot(template: TemplateModel, data: String): String {
+    private fun plot(template: TemplateModel, data: String): ByteArray {
         val launchOptions = LaunchOptions.builder()
         launchOptions.executablePath(dataManager.executablePath)
         launchOptions.headless(true)
@@ -102,14 +111,26 @@ class RenderServiceImpl : RenderService {
             this.type = "text/x-handlebars-template"
             this.content = template.code
         })
-        page.addScriptTag(FrameAddScriptTagOptions().apply {
-            this.id = "style-template"
-            this.type = "text/x-handlebars-template"
-            this.content = template.style
-        })
+
+        if (template.style?.isNotEmpty() == true)
+            page.addScriptTag(FrameAddScriptTagOptions().apply {
+                this.id = "style-template"
+                this.type = "text/x-handlebars-template"
+                this.content = template.style
+            })
 
         //read all js in libs folder
-        val lbs = Path(libs).toFile().listFiles()
+        val pbs = Path(libs).toFile()
+        if (!pbs.exists()) {
+            pbs.mkdir()
+            val res = ClassPathResource("libs").file.listFiles()
+            res?.forEach {
+                val fName = Path(libs, it.name)
+                it.copyTo(fName.toFile())
+            }
+        }
+        val lbs = pbs.listFiles()
+
         lbs?.filter { it.name != "Processor.js" }?.forEach { fs ->
             page.addScriptTag(FrameAddScriptTagOptions().apply {
                 this.type = "text/javascript"
@@ -165,7 +186,7 @@ class RenderServiceImpl : RenderService {
 
         cdpBrowser.close()
 
-        return pdf.toBase64("application/pdf")
+        return pdf
     }
 
     private fun <T> String?.jsonToObject(valueType: Class<T>?): T {
@@ -185,8 +206,4 @@ class RenderServiceImpl : RenderService {
         }
     }
 
-    private fun ByteArray.toBase64(contentType: String): String {
-        val str = Base64.getEncoder().encodeToString(this)
-        return "data:$contentType;base64,$str"
-    }
 }
