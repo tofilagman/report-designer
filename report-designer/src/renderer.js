@@ -9,7 +9,7 @@ const { ipcRenderer } = require('electron');
 const { randomUUID } = require('crypto');
 const { BSON, EJSON } = require('bson');
 const axios = require('axios');
- 
+
 
 function ensureFirstBackSlash(str) {
   return str.length > 0 && str.charAt(0) !== '/'
@@ -289,6 +289,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       window.pdf.open(baseData);
     } catch (ex) {
+      console.error(ex);
       await msgBox(ex.toString());
     }
   }
@@ -458,12 +459,12 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       if (isNullorEmpty(url))
         throw new Error('Deployment url is not defined');
- 
+
       //save first
       await save(false, true);
 
       showLoading('Publishing');
- 
+
       await ipcRenderer.invoke('upload', url, '/template/publish', projectPath);
 
       await msgBox('Completed');
@@ -477,7 +478,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
   initForm();
 }())
 
-ipcRenderer.on('upload-progress', (ev, args)=> {
+ipcRenderer.on('upload-progress', (ev, args) => {
   console.log(args);
 })
 
@@ -493,10 +494,9 @@ const readPuppeteerContent = (name) => {
   return fs.readFileSync(path.join(__dirname, `libs/puppeteer-content/${name}`), 'utf-8');
 }
 
-const uint8ToBase64 = (arr) => {
-  return btoa(
-    String.fromCharCode.apply(null, arr)
-  );
+const uint8ToBase64 = (arr) => { 
+  const buffer = Buffer.from(arr);
+  return buffer.toString("base64");
 };
 
 const replenishAssets = () => {
