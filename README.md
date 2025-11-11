@@ -20,10 +20,11 @@ create environment file .env alongside the executable and write the config below
 
 ```bash
 CHROME_PATH=/usr/bin/google-chrome-stable
+LIBS=/home/libs
 ```
 
-file is save as <filename>.zrpt which used BSON encoding
-
+* file is save as <filename>.zrpt which used BSON encoding
+* add your javascript library in libs folder and create a handlebar helper, see QRCode sample below
 
 # Report Server
 
@@ -72,3 +73,22 @@ curl --request POST \
   --data '<json data here>'
 ```
 
+#### QR Code
+add this to Scripts
+```js 
+Handlebars.registerHelper('qrcode', function (data) {
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
+  var qr = qrcode(4, 'M');
+  qr.addData(data, 'Byte');
+  qr.make();
+ 
+  return qr.createDataURL(50);
+});
+```
+sample code
+```html
+<img src="{{qrcode 'sample qr data'}}" style="width: 200; height: 200" />
+```
+
+use the js lib and configuration here: https://kazuhikoarase.github.io/qrcode-generator/js/demo/

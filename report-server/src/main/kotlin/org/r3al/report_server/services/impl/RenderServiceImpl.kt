@@ -13,6 +13,7 @@ import org.bson.RawBsonDocument
 import org.r3al.report_server.components.GlobalDataManager
 import org.r3al.report_server.models.TemplateModel
 import org.r3al.report_server.services.RenderService
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
@@ -25,6 +26,8 @@ import kotlin.io.path.Path
 
 @Service
 class RenderServiceImpl : RenderService {
+
+    private val logger = LoggerFactory.getLogger(RenderServiceImpl::class.java)
 
     companion object {
         val tempPath = "temp"
@@ -64,6 +67,8 @@ class RenderServiceImpl : RenderService {
     }
 
     override fun uploadTemplate(file: MultipartFile) {
+        logger.info("uploading template ${file.originalFilename}")
+
         val folder = File(reportPath)
         if (!folder.exists()) {
             if (!folder.mkdir()) {
@@ -78,6 +83,8 @@ class RenderServiceImpl : RenderService {
 
         val bts = file.bytes
         template.writeBytes(bts)
+
+        logger.info("uploading template ${file.originalFilename} completed")
     }
 
     private fun plot(template: TemplateModel, data: String): ByteArray {
@@ -121,15 +128,9 @@ class RenderServiceImpl : RenderService {
 
         //read all js in libs folder
         val pbs = Path(libs).toFile()
-        if (!pbs.exists()) {
-            pbs.mkdir()
-            val res = ClassPathResource("libs").file.listFiles()
-            res?.forEach {
-                val fName = Path(libs, it.name)
-                it.copyTo(fName.toFile())
-            }
-        }
-        val lbs = pbs.listFiles()
+        val lbs = if (pbs.exists()) {
+            pbs.listFiles()
+        } else null
 
         lbs?.filter { it.name != "Processor.js" }?.forEach { fs ->
             page.addScriptTag(FrameAddScriptTagOptions().apply {
@@ -187,6 +188,29 @@ class RenderServiceImpl : RenderService {
         cdpBrowser.close()
 
         return pdf
+    }
+
+    override fun uploadLibs(files: List<MultipartFile>) {
+        logger.info("Syncing Libs")
+
+        val folder = File(libs)
+        if (!folder.exists()) {
+            if (!folder.mkdir()) {
+                throw Error("Path $libs doesn't exists and couldn't created")
+            }
+        }
+
+        files.forEach { file ->
+            logger.info("Syncing: ${file.originalFilename}")
+            val template = Path(libs, file.originalFilename!!).toFile()
+
+            if (template.exists())
+                template.delete()
+
+            val bts = file.bytes
+            template.writeBytes(bts)
+        }
+        logger.info("Syncing Libs Completed")
     }
 
     private fun <T> String?.jsonToObject(valueType: Class<T>?): T {

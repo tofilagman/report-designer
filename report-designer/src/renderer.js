@@ -143,6 +143,9 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       case 'btn-publish':
         publish();
         break;
+      case 'btn-sync-lib':
+        syncLib();
+        break;
     }
   });
 
@@ -235,11 +238,14 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       if (isNotNullorEmpty(style))
         await page.addScriptTag({ id: 'style-template', type: 'text/x-handlebars-template', content: style });
-
-      await page.addScriptTag({ type: 'text/javascript', content: readPuppeteerContent('handlebars.min-v4.7.8.js') });
-      await page.addScriptTag({ type: 'text/javascript', content: readPuppeteerContent('moment.min.js') });
-      // await page.addScriptTag({ type: 'text/javascript', content: readPuppeteerContent('chart.min-v2.7.2.js') });
-
+ 
+      const files = fs.readdirSync(process.env.LIBS); 
+      const jsLibs = files.filter(file => path.extname(file) === '.js');
+      for (var js of jsLibs) {
+        if(js.toLowerCase() == "processor.js") continue;
+        await page.addScriptTag({ type: 'text/javascript', content: readLibContent(js) });
+      }
+     
       if (isNotNullorEmpty(data))
         await page.addScriptTag({ type: 'text/javascript', content: `window.processContext = ${data}` });
 
@@ -254,7 +260,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       if (isNotNullorEmpty(script))
         await page.addScriptTag({ type: 'text/javascript', content: script });
 
-      await page.addScriptTag({ type: 'text/javascript', content: readPuppeteerContent('Processor.js') });
+      await page.addScriptTag({ type: 'text/javascript', content: readLibContent('Processor.js') });
 
       //await page.setViewport({ deviceScaleFactor: 1 });
       await page.setJavaScriptEnabled(true);
@@ -450,6 +456,25 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     }
   }
 
+  const syncLib = async () => {
+     try { 
+      const url = fdepUrl.val();
+
+      if (isNullorEmpty(url))
+        throw new Error('Deployment url is not defined');
+ 
+      showLoading('Synchronizing Libraries');
+
+      await ipcRenderer.invoke('syncLib', url);
+
+      await msgBox('Completed');
+    } catch (ex) {
+      await msgBox(ex.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
   const publish = async () => {
     try {
       if (isNullorEmpty(projectPath))
@@ -494,7 +519,11 @@ const readPuppeteerContent = (name) => {
   return fs.readFileSync(path.join(__dirname, `libs/puppeteer-content/${name}`), 'utf-8');
 }
 
-const uint8ToBase64 = (arr) => { 
+const readLibContent = (name) => {
+  return fs.readFileSync(path.join(process.env.LIBS, name), 'utf-8');
+}
+
+const uint8ToBase64 = (arr) => {
   const buffer = Buffer.from(arr);
   return buffer.toString("base64");
 };

@@ -6,6 +6,7 @@ interface RenderService {
     fun render(templateName: String, dataId: String): ByteArray
     fun renderData(templateName: String, data: String): ByteArray
     fun uploadTemplate(file: MultipartFile)
+    fun uploadLibs(files: List<MultipartFile>)
 }
 
 enum class ResponseType() {

@@ -99,7 +99,38 @@ ipcMain.handle('upload', async (event, url, mpath, mfile) => {
             processData: false,
             onUploadProgress: (progressEvent) => {
                 const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                console.log(`Upload Progress: ${percentCompleted}%`); 
+                console.log(`Upload Progress: ${percentCompleted}%`);
+            },
+        });
+    } catch (ex) {
+        throw new Error(`${ex.response.status}: ${ex.response.data}`);
+    }
+});
+
+ipcMain.handle('syncLib', async (event, url) => {
+
+    const instance = axios.create({
+        baseURL: url
+    });
+
+    const formData = new FormData();
+
+    const files = fs.readdirSync(process.env.LIBS);
+    const jsLibs = files.filter(file => path.extname(file) === '.js');
+    for (var js of jsLibs) {
+        formData.append('files', fs.createReadStream(path.join(process.env.LIBS, js)));
+    }
+
+    try {
+        await instance.post("/lib/sync", formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            },
+            contentType: false,
+            processData: false,
+            onUploadProgress: (progressEvent) => {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                console.log(`Upload Progress: ${percentCompleted}%`);
             },
         });
     } catch (ex) {
