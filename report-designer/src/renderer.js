@@ -113,6 +113,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
   const mtop = $('#mtop');
   const mbottom = $('#mbottom');
   const fdepUrl = $('#fdepaddr');
+  const logs = $('#logs-tab-pane');
 
   $.each(OrientationTypes, (idx, itm) => { fort.append(new Option(itm.name, itm.id)); });
   $.each(DocumentTypes, (idx, itm) => { ford.append(new Option(itm.name, itm.id)); });
@@ -188,24 +189,43 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
     }
   });
 
+  const addLog = (value) => {
+    const pre = $('<pre />');
+    pre.html(value);
+
+    logs.append(pre).append($('<hr/>'));
+  }
 
   const render = async () => {
     try {
+      logs.empty();
       const browser = await puppeteer.launch({
         executablePath: process.env.CHROME_PATH,
-        headless: true, args: ["--no-sandbox"]
+        headless: true, args: ["--no-sandbox"],
+        dumpio: true
       });
       const page = await browser.newPage();
 
+      console.log('render started');
+
       // Catch console messages
       page.on('console', async msg => {
-        const args = await Promise.all(msg.args().map(arg =>
-          arg.executionContext().evaluate(arg => {
-            if (arg instanceof Error) return arg.message;
-            return arg;
-          }, arg)
-        ));
-        console.log(...args);
+        for (let i = 0; i < msg.args().length; ++i) {
+          console.log(msg.args()[i]);
+          console.log(await msg.args()[i].jsonValue());
+
+          const obj = msg.args()[i].remoteObject();
+          switch (obj.type) {
+            case 'object':
+              const nVal = JSON.stringify(await msg.args()[i].jsonValue());
+              addLog(nVal);
+              break;
+            default:
+              addLog(obj.value);
+              break;
+          }
+
+        }
       });
 
       // Catch page errors
@@ -238,14 +258,14 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
 
       if (isNotNullorEmpty(style))
         await page.addScriptTag({ id: 'style-template', type: 'text/x-handlebars-template', content: style });
- 
-      const files = fs.readdirSync(process.env.LIBS); 
+
+      const files = fs.readdirSync(process.env.LIBS);
       const jsLibs = files.filter(file => path.extname(file) === '.js');
       for (var js of jsLibs) {
-        if(js.toLowerCase() == "processor.js") continue;
+        if (js.toLowerCase() == "processor.js") continue;
         await page.addScriptTag({ type: 'text/javascript', content: readLibContent(js) });
       }
-     
+
       if (isNotNullorEmpty(data))
         await page.addScriptTag({ type: 'text/javascript', content: `window.processContext = ${data}` });
 
@@ -296,6 +316,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
       window.pdf.open(baseData);
     } catch (ex) {
       console.error(ex);
+      addLog(ex.toString());
       await msgBox(ex.toString());
     }
   }
@@ -457,12 +478,12 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
   }
 
   const syncLib = async () => {
-     try { 
+    try {
       const url = fdepUrl.val();
 
       if (isNullorEmpty(url))
         throw new Error('Deployment url is not defined');
- 
+
       showLoading('Synchronizing Libraries');
 
       await ipcRenderer.invoke('syncLib', url);

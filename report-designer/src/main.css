@@ -54,6 +54,11 @@
   height: 89vh;
 }
 
+#logs-tab-pane {
+  overflow: auto;
+  height: 90vh;
+}
+
 .app-img-item {
   position: relative;
 }
@@ -78,5 +83,3 @@
   position: absolute;
   display: none;
 }
-
- 
