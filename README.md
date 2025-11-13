@@ -1,6 +1,16 @@
 # Generic Report Designer
 
+Screenshot
+![image](samples/sample.png)
+Sample Postman request using live data
+![image](samples/sample-server-rendering.png)
+
 Written in javascript under electron js
+- editor uses Handlebars.js as templating engine https://handlebarsjs.com/
+- supports local resources to handle images via `{{resource '[guid]'}}` snippet
+- allow adding custom js libraries like charts and qrcodes
+- allow async loading for internet dependent files
+
 
 ### build
 ```bash

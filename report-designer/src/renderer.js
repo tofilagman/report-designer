@@ -361,6 +361,8 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         fs.writeFileSync(fnmaa, fdata);
         projectPath = fnmaa;
       }
+
+      document.title = projectPath;
     }
   }
 
@@ -393,6 +395,7 @@ window['WebPdfViewer'].subscribe((ev, obj) => {
         assets = fdata.assets || [];
         projectPath = npc;
 
+        document.title = projectPath;
         replenishAssets();
       }
     } catch (ex) {
