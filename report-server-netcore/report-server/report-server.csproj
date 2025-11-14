@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>z.Report.Server</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>z.Report.Server</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>tofi lagman</Authors>
+    <Company>R3al Consulting Org</Company>
+    <Description>Net Core library for Generic Report Service</Description>
+    <RepositoryUrl>https://github.com/tofilagman/report-designer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+    <PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
+    <PackageReference Include="PuppeteerSharp" Version="20.2.4" />
+    <PackageReference Include="z.Data.Standard" Version="1.2.19" />
+  </ItemGroup>
+
+</Project>
