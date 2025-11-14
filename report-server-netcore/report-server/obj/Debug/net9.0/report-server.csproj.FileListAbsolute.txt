@@ -1,0 +1,12 @@
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/bin/Debug/net9.0/report-server.deps.json
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/bin/Debug/net9.0/report-server.dll
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/bin/Debug/net9.0/report-server.pdb
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.GeneratedMSBuildEditorConfig.editorconfig
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.AssemblyInfoInputs.cache
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.AssemblyInfo.cs
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.csproj.CoreCompileInputs.cache
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.sourcelink.json
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.dll
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/refint/report-server.dll
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.pdb
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/ref/report-server.dll

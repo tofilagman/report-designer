@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "nWpNbjTAe/s=",
+  "success": true,
+  "projectFilePath": "/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server-sample/report-server-sample.csproj",
+  "expectedPackageFiles": [
+    "/home/tofilagman/.nuget/packages/microsoft.aspnetcore.openapi/9.0.8/microsoft.aspnetcore.openapi.9.0.8.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.openapi/1.6.17/microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
