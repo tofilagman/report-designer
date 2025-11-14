@@ -10,3 +10,4 @@
 /home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/refint/report-server.dll
 /home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.pdb
 /home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/ref/report-server.dll
+/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/obj/Debug/net9.0/report-server.csproj.AssemblyReference.cache

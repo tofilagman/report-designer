@@ -1,8 +1,20 @@
+using Microsoft.AspNetCore.Mvc;
+using report_server;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+//add report service
+await builder.Services.AddReport((provider, options) =>
+{
+    var pdfSection = builder.Configuration.GetSection("PdfRender");
+    options.ReportPath = pdfSection.GetValue<string>("ReportPath") ?? "";
+    options.LibsPath = pdfSection.GetValue<string>("LibsPath") ?? "";
+    options.DataPath = pdfSection.GetValue<string>("DataPath") ?? "";
+});
 
 var app = builder.Build();
 
@@ -14,28 +26,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/report/{template}", async ([FromRoute(Name = "token")] string token, [FromBody] string data) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var pdfService = app.Services.GetRequiredService<IPdfService>();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var pdfData = await pdfService.RenderData(token, data);
+    var rData = Convert.ToBase64String(pdfData);
+
+    return $"data:application/pdf;base64,{rData}";
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

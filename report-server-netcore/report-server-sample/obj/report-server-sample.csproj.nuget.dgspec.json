@@ -115,6 +115,24 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.Extensions.Logging.Console": {
+              "target": "Package",
+              "version": "[10.0.0, )"
+            },
+            "Newtonsoft.Json.Bson": {
+              "target": "Package",
+              "version": "[1.0.3, )"
+            },
+            "PuppeteerSharp": {
+              "target": "Package",
+              "version": "[20.2.4, )"
+            },
+            "z.Data.Standard": {
+              "target": "Package",
+              "version": "[1.2.19, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

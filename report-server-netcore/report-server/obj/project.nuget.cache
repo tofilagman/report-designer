@@ -1,8 +1,29 @@
 {
   "version": 2,
-  "dgSpecHash": "bjGh7VXn0TI=",
+  "dgSpecHash": "mZRUpmbJ9Fg=",
   "success": true,
   "projectFilePath": "/home/tofilagman/Projects/Outsource/report-designer/report-server-netcore/report-server/report-server.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.configuration/10.0.0/microsoft.extensions.configuration.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.configuration.abstractions/10.0.0/microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.configuration.binder/10.0.0/microsoft.extensions.configuration.binder.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.dependencyinjection/10.0.0/microsoft.extensions.dependencyinjection.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.0/microsoft.extensions.dependencyinjection.abstractions.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.logging/10.0.0/microsoft.extensions.logging.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.logging.abstractions/10.0.0/microsoft.extensions.logging.abstractions.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.logging.configuration/10.0.0/microsoft.extensions.logging.configuration.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.logging.console/10.0.0/microsoft.extensions.logging.console.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.options/10.0.0/microsoft.extensions.options.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.options.configurationextensions/10.0.0/microsoft.extensions.options.configurationextensions.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/microsoft.extensions.primitives/10.0.0/microsoft.extensions.primitives.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/newtonsoft.json/13.0.1/newtonsoft.json.13.0.1.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/newtonsoft.json.bson/1.0.3/newtonsoft.json.bson.1.0.3.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/puppeteersharp/20.2.4/puppeteersharp.20.2.4.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/system.diagnostics.diagnosticsource/10.0.0/system.diagnostics.diagnosticsource.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/system.io.pipelines/10.0.0/system.io.pipelines.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/system.text.encodings.web/10.0.0/system.text.encodings.web.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/system.text.json/10.0.0/system.text.json.10.0.0.nupkg.sha512",
+    "/home/tofilagman/.nuget/packages/z.data.standard/1.2.19/z.data.standard.1.2.19.nupkg.sha512"
+  ],
   "logs": []
 }
