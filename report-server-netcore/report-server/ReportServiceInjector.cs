@@ -20,7 +20,7 @@ public static class ReportServiceInjector
     }
 
     public static async Task DownloadBrowser()
-    {
+    { 
         var browserFetcher = new BrowserFetcher();
         await browserFetcher.DownloadAsync();
     }

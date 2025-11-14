@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using z.Data;
 using z.Report.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,24 +21,32 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+  app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
 
-app.MapPost("/report/{template}", async ([FromRoute(Name = "template")] string template, [FromBody] object data) =>
+app.MapPost("/report/{template}", async ([FromRoute(Name = "template")] string template, HttpRequest request) =>
 {
-    var pdfService = app.Services.GetRequiredService<IPdfService>();
+  var factory = app.Services.GetRequiredService<IServiceScopeFactory>();
+  using var scope = factory.CreateScope();
 
-    var mData = data.ToJson();
-    var pdfData = await pdfService.RenderData(template, mData);
-    var rData = Convert.ToBase64String(pdfData);
+  var pdfService = scope.ServiceProvider.GetRequiredService<IPdfService>();
 
-    return $"data:application/pdf;base64,{rData}";
+  //get raw data as string, i dont want to create a model for it 
+  var rawRequestBody = await new StreamReader(request.Body).ReadToEndAsync();
+
+  // var mData = data.ToJson();
+  var pdfData = await pdfService.RenderData(template, rawRequestBody);
+  var rData = Convert.ToBase64String(pdfData);
+
+  return $"data:application/pdf;base64,{rData}";
 });
 
 //for server deployment, download browser once per needed
+Console.WriteLine("Downloading Browser");
 await ReportServiceInjector.DownloadBrowser();
+Console.WriteLine("Downloading Browser Completed");
 
 app.Run();
 

@@ -86,7 +86,7 @@ public class PdfService : IPdfService
                 });
 
             var libs = Directory.GetFiles(configurationToken.LibsPath, "*.js");
-            foreach (var lib in libs.Where(x => x.ToLower() != "processor.js"))
+            foreach (var lib in libs.Where(x => Path.GetFileName(x).ToLower() != "processor.js"))
             {
                 await page.AddScriptTagAsync(new AddTagOptions
                 {
@@ -121,7 +121,7 @@ public class PdfService : IPdfService
                     Content = token.Script
                 });
 
-            var processor = libs.SingleOrDefault(x => x.ToLower() == "processor.js") ?? throw new Exception("Process.js could not be found");
+            var processor = libs.SingleOrDefault(x => Path.GetFileName(x).ToLower() == "processor.js") ?? throw new Exception("Processor.js could not be found");
             await page.AddScriptTagAsync(new AddTagOptions
             {
                 Type = "text/javascript",
