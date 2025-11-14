@@ -5,6 +5,15 @@
     <RootNamespace>z.Report.Server</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackageId>z.Report.Server</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>tofi lagman</Authors>
+    <Company>R3al Consulting Org</Company>
+    <Description>Net Core library for Generic Report Service</Description>
+    <RepositoryUrl>https://github.com/tofilagman/report-designer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
