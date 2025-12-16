@@ -14,5 +14,6 @@ services:
         -Xmx2048m
         -Dspring.profiles.active=production
         -Dapp.path.temp=/app/temp
+        -Dbrowser.path=/app/chrome/chrome-linux64/chrome
     volumes:
       - ./temp:/app/temp:Z

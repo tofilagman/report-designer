@@ -18,11 +18,16 @@ RUN mv jdk-21.0.1/ /usr/local/jdk-21
 RUN apt-get install -y unzip libglib2.0-0 libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1
 RUN apt-get install -y libxfixes3 libxrandr2 libgbm1 libasound2
 RUN apt update
-RUN apt install -y libpango-1.0-0 libcairo2
+RUN apt install -y libpango-1.0-0 libcairo2 curl unzip
 RUN ldconfig
- 
 RUN mkdir "/app/temp" -p
-VOLUME ["/app/temp"] 
+RUN mkdir "/app/chrome" -p
+VOLUME ["/app/temp"]
+VOLUME ["/app/chrome"] 
+
+RUN curl -sS "https://storage.googleapis.com/chrome-for-testing-public/143.0.7499.42/linux64/chrome-linux64.zip" -o /tmp/chrome.zip && \
+    unzip /tmp/chrome.zip -d /app/chrome && \
+    rm /tmp/chrome.zip
 
 WORKDIR /app
 COPY --from=backend /app/target/report-server-0.0.1.jar .
