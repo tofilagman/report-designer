@@ -1,0 +1,4 @@
+dist
+out-test
+media/vendor
+*.vsix
