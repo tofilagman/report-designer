@@ -1,0 +1,17 @@
+# Sample project used by the "Run Extension" launch config.
+version = 1
+
+[libs]
+# The repo's shared libraries (Handlebars, moment, chart.js, qrcode, Processor.js).
+path = "../../libs"
+
+[defaults]
+document_type = "A4"
+orientation = "portrait"
+margin = { top = "20", right = "20", bottom = "20", left = "20" }
+
+[deploy]
+default = "dev"
+
+[deploy.targets.dev]
+url = "http://localhost:8088"

@@ -1,0 +1,198 @@
+/* Visual builder (Design tab) and live canvas (Live tab). */
+
+.panel.scroll-y { overflow-y: auto; }
+.banner {
+  padding: 6px 10px;
+  font-size: 0.95em;
+  color: var(--vscode-editorInfo-foreground, var(--vscode-foreground));
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+.panel[data-panel="code"] { display: none; flex-direction: column; }
+.panel[data-panel="code"].active { display: flex; }
+.panel[data-panel="code"] .editor { position: relative; flex: 1; inset: auto; }
+
+button.small { padding: 2px 8px; font-size: 0.9em; }
+button.danger {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-errorForeground);
+}
+.spacer { flex: 1; }
+a { color: var(--vscode-textLink-foreground); cursor: pointer; }
+
+/* ---------- builder ---------- */
+
+.rb-builder { display: flex; flex-direction: column; min-height: 100%; }
+
+.rb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--vscode-editor-background);
+}
+.rb-toolbar-label { color: var(--vscode-descriptionForeground); margin-right: 4px; }
+.rb-toolbar button { padding: 3px 9px; }
+
+.rb-banner { padding: 6px 10px; }
+.rb-banner.warn { color: var(--vscode-editorWarning-foreground); }
+
+.rb-columns {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(260px, 1.3fr);
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 620px) { .rb-columns { grid-template-columns: 1fr; } }
+
+.rb-outline {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  border-right: 1px solid var(--vscode-panel-border);
+}
+.rb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.rb-row:hover { background: var(--vscode-list-hoverBackground); }
+.rb-row.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+.rb-row.drop-before { border-top-color: var(--vscode-focusBorder); }
+.rb-row.drop-after { border-bottom-color: var(--vscode-focusBorder); }
+.rb-grip { cursor: grab; opacity: 0.6; }
+.rb-type {
+  flex: none;
+  font-size: 0.8em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+.rb-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-actions { display: flex; gap: 1px; flex: none; }
+.rb-row .rb-actions { visibility: hidden; }
+.rb-row:hover .rb-actions, .rb-row.selected .rb-actions { visibility: visible; }
+button.rb-icon {
+  padding: 0 5px;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.75;
+  line-height: 1.6;
+}
+button.rb-icon:hover:not(:disabled) { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
+button.rb-icon:disabled { opacity: 0.25; }
+
+.rb-inspector { padding: 10px 12px 24px; min-width: 0; }
+.rb-form { display: flex; flex-direction: column; gap: 10px; }
+.rb-form h4 { margin: 0; }
+.rb-label { display: flex; flex-direction: column; gap: 3px; }
+.rb-label > span { color: var(--vscode-descriptionForeground); font-size: 0.92em; }
+.rb-label input, .rb-label select, .rb-label textarea { width: 100%; }
+.rb-form textarea {
+  font: inherit;
+  padding: 4px 6px;
+  resize: vertical;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 2px;
+}
+.rb-check { display: flex; align-items: center; gap: 6px; }
+.rb-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+.rb-subhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+  font-weight: 600;
+}
+.rb-color { display: flex; gap: 4px; }
+.rb-color input[type="color"] { width: 32px; padding: 0 2px; flex: none; }
+.rb-color input:not([type]) { flex: 1; min-width: 0; }
+.rb-seg { display: flex; }
+.rb-seg button { flex: 1; padding: 3px 4px; border-radius: 0; }
+.rb-seg button:first-child { border-radius: 2px 0 0 2px; }
+.rb-seg button:last-child { border-radius: 0 2px 2px 0; }
+
+.rb-cols { display: flex; flex-direction: column; gap: 4px; }
+.rb-col {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 76px 58px auto;
+  gap: 4px;
+  align-items: center;
+}
+.rb-col input, .rb-col select { min-width: 0; width: 100%; }
+
+.rb-assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+button.rb-asset {
+  padding: 2px;
+  height: 64px;
+  background: var(--vscode-input-background);
+  border: 2px solid transparent;
+}
+button.rb-asset.selected { border-color: var(--vscode-focusBorder); }
+button.rb-asset img { width: 100%; height: 100%; object-fit: contain; }
+
+.rb-start { padding: 16px; max-width: 520px; }
+.rb-start h3 { margin-top: 0; }
+.rb-start p { line-height: 1.5; }
+.rb-note {
+  padding: 8px 10px;
+  border-left: 3px solid var(--vscode-editorWarning-foreground);
+  background: var(--vscode-editorWidget-background);
+}
+
+/* ---------- live canvas ---------- */
+
+#canvas { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.rb-canvas-status {
+  padding: 6px 10px;
+  color: var(--vscode-errorForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  white-space: pre-wrap;
+}
+.rb-canvas-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  background: var(--vscode-editorWidget-background, #2a2a2a);
+}
+.rb-sheet {
+  position: relative;
+  transform-origin: 0 0;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+  background: #fff;
+}
+.rb-frame { display: block; border: 0; background: #fff; }
+.rb-frame.rb-pending { position: absolute; top: 0; left: 0; visibility: hidden; }
+.rb-guides { position: absolute; inset: 0; pointer-events: none; }
+.rb-break {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed rgba(26, 115, 232, 0.55);
+}
+.rb-break span {
+  position: absolute;
+  right: 6px;
+  top: -18px;
+  font: 11px var(--vscode-font-family);
+  color: rgba(26, 115, 232, 0.9);
+}
