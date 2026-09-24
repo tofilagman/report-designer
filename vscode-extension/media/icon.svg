@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect x="0" y="0" width="128" height="128" rx="26" fill="#0f766e"/>
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- report page with a folded corner -->
+    <path d="M47 22 H73 L94 43 V96 A10 10 0 0 1 84 106 H47 A10 10 0 0 1 37 96 V32 A10 10 0 0 1 47 22 Z"/>
+    <path d="M73 22 V37 A6 6 0 0 0 79 43 H94"/>
+  </g>
+  <!-- table: framed grid with a filled header row -->
+  <path d="M49 60 A5 5 0 0 1 54 55 H78 A5 5 0 0 1 83 60 V66 H49 Z" fill="#ffffff"/>
+  <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="49" y="55" width="34" height="39" rx="5"/>
+    <path d="M49 80 H83"/>
+    <path d="M64 66 V94"/>
+  </g>
+</svg>

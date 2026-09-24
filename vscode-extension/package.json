@@ -3,19 +3,33 @@
   "displayName": "Report Designer",
   "description": "Design Handlebars PDF report templates (.zrpt) inside VS Code",
   "version": "0.1.0",
-  "publisher": "r3al",
-  "license": "ISC",
+  "publisher": "tofilagman",
+  "license": "MIT",
+  "icon": "media/icon.png",
   "author": "tofi lagman <tofilagman@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tofilagman/report-designer"
+    "url": "git+https://github.com/tofilagman/report-designer.git"
   },
+  "bugs": {
+    "url": "https://github.com/tofilagman/report-designer/issues"
+  },
+  "homepage": "https://github.com/tofilagman/report-designer/tree/master/vscode-extension#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Visualization",
     "Other"
+  ],
+  "keywords": [
+    "report",
+    "pdf",
+    "handlebars",
+    "template",
+    "designer",
+    "zrpt",
+    "puppeteer"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
