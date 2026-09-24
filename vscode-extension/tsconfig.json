@@ -7,7 +7,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node", "vscode"]
+    "types": ["node", "vscode"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "include": ["src", "test"]
 }

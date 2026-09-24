@@ -10,6 +10,18 @@ Design Handlebars PDF report templates (`.zrpt`) inside VS Code. Opening a `.zrp
 
 `.zrpt` files are unchanged from the Electron designer, so both tools and both servers read the same files.
 
+## Visual builder (prototype)
+
+The **Design** tab builds a report from blocks instead of hand-written Handlebars: Text (with `{{field}}` tokens), Field, Table, Image, Divider and Spacer. Field and list pickers come from the sample JSON in the Data tab, and **Start from sample data** creates a first layout with a field per value and a table per list.
+
+- The **Live** tab renders the page instantly with your sample data, libraries and scripts, at the real page size with page-break guides. Click a block on it to select it. **PDF** is still the exact Chrome render.
+- The layout is saved as a `layout` field in the `.zrpt` and the Template tab shows the generated code, read-only. The servers ignore `layout` and render `code` as before.
+- **Undo/Redo**: builder changes go on VS Code's undo stack, so ⌘Z / Ctrl+Z, ⇧⌘Z / Ctrl+Y, the Edit menu and the toolbar buttons all work, and undoing back to the last save clears the unsaved marker. Typing in one field merges into one step (until a 1.5 s pause); adding, moving or deleting a block, starting a layout and detaching are one step each. Inside the Data, Style and Script editors ⌘Z undoes that editor's text, as before.
+- **Detach to code** switches the report to hand editing and keeps the layout in the file (`detachedLayout`). **Re-attach visual layout** in the Design tab brings it back; if the template was edited by hand in between, the Design tab says so and the edited version is kept under **Restore previous template**. Hand-written templates that never had a layout can't be turned into blocks. Starting a layout on an existing report keeps the old template, and **Restore previous template** brings it back.
+- The Live canvas needs `'unsafe-eval'` in the webview's CSP for `Handlebars.compile`. Template scripts run in a sandboxed iframe without same-origin access, so they can't reach the VS Code API.
+
+`sample-project/invoice-visual.zrpt` is the sample invoice built with the builder.
+
 ## Project config: `report-designer.toml`
 
 Reports in a folder share one config. The designer walks up from the report's folder to the workspace root, and the **nearest** `report-designer.toml` wins; configs are never merged. Relative paths resolve against the TOML file's folder.
@@ -90,5 +102,7 @@ Press **F5** in VS Code with this folder open to launch an Extension Development
 | `src/deploy.ts` | Publish, sync libs, test connection |
 | `src/model.ts` | `.zrpt` BSON encoding |
 | `media/designer.js` | Webview UI; sandboxed and talks to the host through `postMessage` |
+| `src/builder/` | Visual builder block model, schema inference and Handlebars generator (pure, unit-tested) |
+| `src/webview/builder/` | Builder UI (Preact) and live canvas, bundled to `media/builder.js` |
 
 The webview never touches the file system or network. File access, rendering and uploads all happen in the extension host.

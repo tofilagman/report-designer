@@ -14,10 +14,12 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const state = Object.assign({ split: 0.55, left: 'code', right: 'preview' }, vscode.getState() || {});
+  const saved = vscode.getState();
+  const state = Object.assign({ split: 0.55, left: 'code', right: 'live' }, saved || {});
   const saveState = () => vscode.setState(state);
 
   let model = null;
+  let modelSeen = false;
   let config = null;
   let editors = {};
   /** True while applying a model from the host, so programmatic changes aren't echoed back as edits. */
@@ -38,6 +40,7 @@
     model[field] = value;
     post({ type: 'edit', field, value });
     if (field === 'name') $('title').textContent = value;
+    refreshDesign();
   };
 
   // ---------- tabs & split ----------
@@ -126,6 +129,9 @@
     } finally {
       applying = false;
     }
+    if (!saved && !modelSeen) showTab('left', model.layout ? 'design' : 'code');
+    modelSeen = true;
+    refreshDesign();
   }
 
   // ---------- project config ----------
@@ -342,6 +348,20 @@
       case 'assets':
         model.assets = msg.assets;
         renderAssets(msg.assets);
+        refreshDesign();
+        break;
+      case 'layout':
+        // Undo/redo of a builder step, applied by the host.
+        model.layout = msg.layout;
+        model.code = msg.code;
+        model.detachedLayout = msg.detachedLayout;
+        showCode(msg.code);
+        if (model.layout && selected && !model.layout.blocks.some((b) => b.id === selected)) selected = undefined;
+        refreshDesign();
+        break;
+      case 'libs':
+        libs = { libs: msg.libs, processor: msg.processor };
+        refreshDesign();
         break;
       case 'rendering':
         $('btn-preview').disabled = true;
@@ -380,6 +400,155 @@
         break;
     }
   });
+
+  // ---------- visual builder & live canvas ----------
+
+  const RB = window.ReportBuilder;
+  let libs = null;
+  let selected;
+  let canvasTimer;
+  let canvasReported = false;
+  let lastCanvasError = '';
+
+  /** Shows code in the Template editor without echoing it back to the host as an edit. */
+  function showCode(code) {
+    const ed = editors.code;
+    if (!ed || ed.getValue() === code) return;
+    applying = true;
+    try {
+      ed.setValue(code);
+    } finally {
+      applying = false;
+    }
+  }
+
+  /**
+   * One builder change: layout plus the code generated from it, sent as a single undoable
+   * step. `change.label` names it in Edit > Undo; `change.group` merges typing in one field.
+   */
+  function setLayout(layout, change, code, detachedLayout) {
+    model.layout = layout;
+    model.code = code !== undefined ? code : layout ? RB.generateTemplate(layout) : model.code;
+    if (detachedLayout !== undefined) model.detachedLayout = detachedLayout;
+    post({ type: 'layoutEdit', layout, code: model.code, detachedLayout, label: change.label, group: change.group });
+    showCode(model.code);
+    refreshDesign();
+  }
+
+  const builder = RB.mountBuilder($('builder'), {
+    onChange: setLayout,
+    onSelect(id) {
+      selected = id;
+      refreshDesign(false);
+      canvas.select(id);
+    },
+    onStart(fromData) {
+      const { data } = RB.readData(model.data);
+      const layout = fromData
+        ? RB.starterLayout(model.name, data, model.code)
+        : { version: 1, blocks: [], replacedCode: model.code.trim() ? model.code : undefined };
+      setLayout(layout, { label: 'Start visual layout' }, undefined, null);
+      showTab('right', 'live');
+    },
+    onDetach() {
+      // The layout is set aside, not deleted, so the report can be re-attached.
+      setLayout(null, { label: 'Detach to code' }, undefined, model.layout);
+      showTab('left', 'code');
+    },
+    onRestore() {
+      const code = model.layout && model.layout.replacedCode;
+      const { replacedCode, ...layout } = model.layout;
+      setLayout(null, { label: 'Restore previous template' }, code, layout);
+      showTab('left', 'code');
+    },
+    onReattach() {
+      const saved = model.detachedLayout;
+      if (!saved) return;
+      // Hand edits made since detaching are kept as the "previous template", so they can be restored.
+      const edited = detachedEdited();
+      const layout = { ...saved, replacedCode: edited ? model.code : saved.replacedCode };
+      setLayout(layout, { label: 'Re-attach visual layout' }, undefined, null);
+      showTab('right', 'live');
+    },
+    onUndo() {
+      post({ type: 'undo' });
+    },
+    onRedo() {
+      post({ type: 'redo' });
+    },
+    onOpenTab(tab) {
+      showTab('left', tab);
+    },
+  });
+
+  const canvas = RB.createCanvas($('canvas'), window.RD_NONCE, {
+    onSelect(id) {
+      if (!model || !model.layout) return;
+      selected = id;
+      refreshDesign(false);
+      canvas.select(id);
+      showTab('left', 'design');
+    },
+    onLog(level, message) {
+      // Only errors go to the Output channel; the canvas re-renders on every keystroke.
+      if (level === 'error' && message !== lastCanvasError) {
+        lastCanvasError = message;
+        clientLog('error', message);
+      }
+    },
+    onRendered(ms) {
+      lastCanvasError = '';
+      if (!canvasReported) {
+        canvasReported = true;
+        clientLog('info', `Live canvas rendered in ${ms} ms`);
+      }
+    },
+  });
+
+  /** True when the template was changed by hand after the layout was detached. */
+  function detachedEdited() {
+    const saved = model.detachedLayout;
+    return !!saved && model.code.trim() !== RB.generateTemplate(saved).trim();
+  }
+
+  /** Updates the builder panel and schedules a canvas render. */
+  function refreshDesign(renderCanvas = true) {
+    if (!model) return;
+    const { data, error } = RB.readData(model.data);
+    builder.update({
+      layout: model.layout || null,
+      schema: RB.inferSchema(data),
+      dataError: error,
+      hasData: data !== undefined,
+      hasCode: !!model.code.trim(),
+      detached: !model.layout && model.detachedLayout ? { blocks: model.detachedLayout.blocks.length, edited: detachedEdited() } : undefined,
+      assets: model.assets,
+      selected,
+    });
+    const visual = !!model.layout;
+    $('code-banner').hidden = !visual;
+    if (editors.code) editors.code.updateOptions({ readOnly: visual });
+    if (renderCanvas) scheduleCanvas();
+  }
+
+  function scheduleCanvas() {
+    clearTimeout(canvasTimer);
+    canvasTimer = setTimeout(() => {
+      if (!model || !libs) return;
+      canvas.render({
+        code: model.layout ? RB.generateTemplate(model.layout, { annotate: true }) : model.code,
+        style: model.style,
+        script: model.script,
+        data: model.data,
+        assets: model.assets,
+        documentType: model.documentType,
+        landscape: model.landscape,
+        margin: model.margin,
+        libs: libs.libs,
+        processor: libs.processor,
+      });
+    }, 150);
+  }
 
   // ---------- Monaco ----------
 

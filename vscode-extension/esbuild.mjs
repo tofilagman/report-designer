@@ -58,6 +58,21 @@ const extension = await esbuild.context({
   external: ['vscode'],
 });
 
+// Visual builder UI for the webview (Preact), loaded by media/designer.js.
+const webview = await esbuild.context({
+  entryPoints: [join(root, 'src/webview/builder/index.tsx')],
+  outfile: join(root, 'media/builder.js'),
+  bundle: true,
+  platform: 'browser',
+  target: 'es2020',
+  format: 'iife',
+  jsx: 'automatic',
+  jsxImportSource: 'preact',
+  sourcemap: production ? false : 'inline',
+  minify: production,
+  logLevel: 'info',
+});
+
 if (args.has('--tests')) {
   await esbuild.build({
     ...common,
@@ -68,8 +83,8 @@ if (args.has('--tests')) {
 }
 
 if (watch) {
-  await extension.watch();
+  await Promise.all([extension.watch(), webview.watch()]);
 } else {
-  await extension.rebuild();
-  await extension.dispose();
+  await Promise.all([extension.rebuild(), webview.rebuild()]);
+  await Promise.all([extension.dispose(), webview.dispose()]);
 }

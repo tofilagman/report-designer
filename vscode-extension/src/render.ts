@@ -226,7 +226,7 @@ export async function renderReport(model: ReportModel, opts: RenderOptions): Pro
   }
 }
 
-function listLibs(libsPath?: string): { scripts: string[]; processor?: string } {
+export function listLibs(libsPath?: string): { scripts: string[]; processor?: string } {
   if (!libsPath || !existsSync(libsPath)) return { scripts: [] };
   const files = readdirSync(libsPath)
     .filter((f) => extname(f).toLowerCase() === '.js')

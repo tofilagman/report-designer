@@ -6,14 +6,25 @@ import type { DeployTarget } from './config/parse';
 import { ConfigService, ResolvedConfig } from './config/service';
 import { publishTemplate, syncLibs, testConnection } from './deploy';
 import { ReportDocument } from './document';
+import type { ReportLayout } from './builder/layout';
 import type { Asset, EditableFields } from './model';
-import { BrowserPool, RenderLog, renderReport } from './render';
+import { readFileSync } from 'node:fs';
+import { BrowserPool, listLibs, RenderLog, renderReport } from './render';
 
 export const VIEW_TYPE = 'reportDesigner.zrpt';
 
 const EDITABLE: ReadonlySet<keyof EditableFields> = new Set([
   'name', 'landscape', 'documentType', 'margin', 'code', 'data', 'style', 'script',
 ]);
+
+/** Builder edits typed in the same field within this window become one undo step. */
+const COALESCE_MS = 1500;
+
+interface LayoutSnapshot {
+  layout: ReportLayout | null;
+  code: string;
+  detachedLayout: ReportLayout | null;
+}
 
 const IMAGE_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -27,6 +38,8 @@ const IMAGE_TYPES: Record<string, string> = {
 type FromWebview =
   | { type: 'ready' }
   | { type: 'edit'; field: keyof EditableFields; value: unknown }
+  | { type: 'layoutEdit'; layout: ReportLayout | null; code: string; detachedLayout?: ReportLayout | null; label: string; group?: string }
+  | { type: 'undo' | 'redo' }
   | { type: 'preview' }
   | { type: 'publish' | 'syncLibs' | 'testConnection'; target?: string }
   | { type: 'addAssets' }
@@ -40,7 +53,11 @@ interface Editor {
 }
 
 export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocument> {
-  private readonly changed = new vscode.EventEmitter<vscode.CustomDocumentContentChangeEvent<ReportDocument>>();
+  // Builder edits are undoable edit events; text typed in the Monaco tabs is a content change,
+  // since Monaco keeps its own undo history.
+  private readonly changed = new vscode.EventEmitter<
+    vscode.CustomDocumentEditEvent<ReportDocument> | vscode.CustomDocumentContentChangeEvent<ReportDocument>
+  >();
   readonly onDidChangeCustomDocument = this.changed.event;
 
   private readonly editors = new Set<Editor>();
@@ -48,6 +65,8 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
   private readonly rendering = new Set<ReportDocument>();
   /** Folders we've already offered to create a config for, this session. */
   private readonly migrationOffered = new Set<string>();
+  /** The newest builder undo step per document, while further typing can still extend it. */
+  private readonly openGroups = new Map<ReportDocument, { key: string; at: number; after: LayoutSnapshot; open: boolean }>();
   /** Documents with an open "changed on disk" prompt, so repeated writes don't stack prompts. */
   private readonly conflictPrompts = new Set<ReportDocument>();
 
@@ -57,7 +76,14 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     private readonly log: vscode.LogOutputChannel,
     private readonly browsers: BrowserPool,
   ) {
-    context.subscriptions.push(configs.onDidChange(() => this.editors.forEach((e) => this.postConfig(e))));
+    context.subscriptions.push(
+      configs.onDidChange(() =>
+        this.editors.forEach((e) => {
+          this.postConfig(e);
+          this.postLibs(e);
+        }),
+      ),
+    );
   }
 
   get activeEditor(): Editor | undefined {
@@ -115,6 +141,61 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
       id: context.destination.toString(),
       delete: () => vscode.workspace.fs.delete(context.destination).then(undefined, () => undefined),
     };
+  }
+
+  // ---- builder undo/redo ----
+
+  /**
+   * Applies a layout change from the builder as an undoable edit. Keystrokes in the same
+   * field (same `group`) within COALESCE_MS extend the latest step instead of adding one.
+   */
+  private layoutEdit(
+    document: ReportDocument,
+    msg: { layout: ReportLayout | null; code: string; detachedLayout?: ReportLayout | null; label: string; group?: string },
+  ) {
+    const after: LayoutSnapshot = {
+      layout: msg.layout ?? null,
+      code: msg.code,
+      // Omitted by ordinary builder edits, which leave any set-aside layout alone.
+      detachedLayout: msg.detachedLayout !== undefined ? msg.detachedLayout : document.model.detachedLayout ?? null,
+    };
+    const now = Date.now();
+    const open = this.openGroups.get(document);
+    if (msg.group && open?.open && open.key === msg.group && now - open.at < COALESCE_MS) {
+      open.after = after;
+      open.at = now;
+      this.setLayout(document, after, false);
+      return;
+    }
+
+    const before: LayoutSnapshot = {
+      layout: document.model.layout ?? null,
+      code: document.model.code,
+      detachedLayout: document.model.detachedLayout ?? null,
+    };
+    const step = { key: msg.group ?? '', at: now, after, open: !!msg.group };
+    this.openGroups.set(document, step);
+    this.setLayout(document, after, false);
+    this.changed.fire({
+      document,
+      label: msg.label,
+      undo: () => {
+        step.open = false;
+        this.setLayout(document, before, true);
+      },
+      redo: () => {
+        step.open = false;
+        this.setLayout(document, step.after, true);
+      },
+    });
+  }
+
+  private setLayout(document: ReportDocument, snap: LayoutSnapshot, notify: boolean) {
+    document.model = { ...document.model, layout: snap.layout, code: snap.code, detachedLayout: snap.detachedLayout };
+    if (!notify) return;
+    for (const e of this.editorsFor(document)) {
+      e.panel.webview.postMessage({ type: 'layout', ...snap });
+    }
   }
 
   // ---- external changes ----
@@ -177,6 +258,12 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     const find = (uri: vscode.Uri) => [...this.editors].find((e) => e.document.uri.toString() === uri.toString())?.document;
     return {
       model: (uri: vscode.Uri) => find(uri)?.model,
+      /** Delivers a message as if the webview had sent it. */
+      message: async (uri: vscode.Uri, msg: FromWebview) => {
+        const editor = [...this.editors].find((e) => e.document.uri.toString() === uri.toString());
+        if (!editor) throw new Error(`${uri} is not open`);
+        await this.onMessage(editor, msg);
+      },
       edit: (uri: vscode.Uri, field: keyof EditableFields, value: unknown) => {
         const document = find(uri);
         if (!document) throw new Error(`${uri} is not open`);
@@ -273,11 +360,21 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
       case 'ready':
         panel.webview.postMessage({ type: 'model', model: document.model });
         this.postConfig(editor);
+        this.postLibs(editor);
         return;
       case 'edit':
         if (!EDITABLE.has(msg.field)) return;
         document.applyEdit(msg.field, msg.value as never);
         this.changed.fire({ document });
+        return;
+      case 'layoutEdit':
+        this.layoutEdit(document, msg);
+        return;
+      case 'undo':
+      case 'redo':
+        // Goes through VS Code's undo stack for this document, same as Cmd+Z and the Edit menu.
+        panel.reveal(undefined, false);
+        await vscode.commands.executeCommand(msg.type);
         return;
       case 'preview':
         return this.preview(editor);
@@ -348,6 +445,26 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
   }
 
   // ---- config helpers ----
+
+  /** Library sources for the live canvas, which renders in the webview with the same scripts as the PDF. */
+  private postLibs(editor: Editor) {
+    const libsPath = this.configs.resolve(editor.document.uri).config?.libsPath;
+    const libs = listLibs(libsPath);
+    const read = (p: string) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch (err) {
+        this.log.warn(`Could not read ${p}: ${(err as Error).message}`);
+        return '';
+      }
+    };
+    editor.panel.webview.postMessage({
+      type: 'libs',
+      libsPath,
+      libs: libs.scripts.map((p) => ({ name: basename(p), content: read(p) })),
+      processor: read(libs.processor ?? vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'Processor.js').fsPath),
+    });
+  }
 
   private postConfig(editor: Editor) {
     const r = this.configs.resolve(editor.document.uri);
@@ -453,7 +570,10 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
       `img-src ${webview.cspSource} data: blob:`,
       `font-src ${webview.cspSource} data:`,
       `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `script-src 'nonce-${nonce}' ${webview.cspSource}`,
+      // 'unsafe-eval' is for Handlebars.compile in the live canvas. Template scripts run in a
+      // sandboxed iframe without same-origin access, so they can't reach the VS Code API.
+      `script-src 'nonce-${nonce}' ${webview.cspSource} 'unsafe-eval'`,
+      `frame-src 'self' about:`,
       `worker-src blob:`,
       `connect-src ${webview.cspSource}`,
     ].join('; ');
@@ -465,6 +585,7 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="${uri('designer.css')}">
+  <link rel="stylesheet" href="${uri('builder.css')}">
   <title>Report Designer</title>
 </head>
 <body>
@@ -481,6 +602,7 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
   <main class="split" id="split">
     <section class="pane" id="left">
       <nav class="tabs" data-group="left">
+        <button data-tab="design">Design</button>
         <button data-tab="code" class="active">Template</button>
         <button data-tab="data">Data</button>
         <button data-tab="style">Style</button>
@@ -489,7 +611,11 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
         <button data-tab="settings">Settings</button>
       </nav>
       <div class="panels">
-        <div class="panel active" data-panel="code"><div class="editor" id="ed-code"></div></div>
+        <div class="panel scroll-y" data-panel="design"><div id="builder"></div></div>
+        <div class="panel active" data-panel="code">
+          <div class="banner" id="code-banner" hidden>Generated by the visual builder. Use <b>Detach to code</b> in the Design tab to edit it by hand.</div>
+          <div class="editor" id="ed-code"></div>
+        </div>
         <div class="panel" data-panel="data"><div class="editor" id="ed-data"></div></div>
         <div class="panel" data-panel="style"><div class="editor" id="ed-style"></div></div>
         <div class="panel" data-panel="script"><div class="editor" id="ed-script"></div></div>
@@ -524,11 +650,13 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
 
     <section class="pane" id="right">
       <nav class="tabs" data-group="right">
-        <button data-tab="preview" class="active">Preview</button>
+        <button data-tab="live" class="active" title="Instant HTML render with your sample data; click a block to select it">Live</button>
+        <button data-tab="preview" title="Exact PDF from Chrome">PDF</button>
         <button data-tab="logs">Logs <span class="badge" id="log-count" hidden></span></button>
       </nav>
       <div class="panels">
-        <div class="panel active scroll" data-panel="preview">
+        <div class="panel active" data-panel="live"><div id="canvas"></div></div>
+        <div class="panel scroll" data-panel="preview">
           <div class="status" id="preview-status">Press Preview to render the report.</div>
           <div class="pages" id="pages"></div>
         </div>
@@ -543,10 +671,12 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
 
   <script nonce="${nonce}">
     window.RD_VENDOR = ${JSON.stringify({ monaco: uri('vendor', 'monaco', 'vs'), pdfjs: uri('vendor', 'pdfjs') })};
+    window.RD_NONCE = ${JSON.stringify(nonce)};
   </script>
   <!-- pdf.js must load before Monaco's AMD loader, or its UMD wrapper registers as an AMD module instead of window.pdfjsLib -->
   <script nonce="${nonce}" src="${uri('vendor', 'pdfjs', 'pdf.min.js')}"></script>
   <script nonce="${nonce}" src="${uri('vendor', 'monaco', 'vs', 'loader.js')}"></script>
+  <script nonce="${nonce}" src="${uri('builder.js')}"></script>
   <script nonce="${nonce}" src="${uri('designer.js')}"></script>
 </body>
 </html>`;

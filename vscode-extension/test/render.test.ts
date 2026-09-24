@@ -6,6 +6,8 @@ import { test } from 'node:test';
 import { resolveChromePath } from '../src/chrome';
 import { newReport } from '../src/model';
 import { BrowserPool, RenderError, renderReport } from '../src/render';
+import { generateTemplate } from '../src/builder/generate';
+import { starterLayout } from '../src/builder/layout';
 
 // Uses the repo's shared libs folder and a locally installed Chrome; skipped when Chrome isn't found.
 const repoLibs = resolve(__dirname, '../../libs');
@@ -85,4 +87,13 @@ test('pooled renders reuse Chrome and report every stage', { skip: !chromePath &
 test('a hung template times out and names the stage', { skip: !chromePath && 'Chrome not found' }, async () => {
   const model = { ...newReport('T'), code: '<p/>', script: 'function appScript(){ while(true){} }' };
   await assert.rejects(renderReport(model, { ...opts, timeoutMs: 3000 }), /Timed out after 3 s while: Compiling Handlebars template/);
+});
+
+test('a builder-generated template renders through the PDF pipeline', { skip: !chromePath && 'Chrome not found' }, async () => {
+  const data = { number: 'INV-1', items: [{ name: 'Widget', price: '10.00' }] };
+  const layout = starterLayout('Invoice', data);
+  const model = { ...newReport('T'), layout, code: generateTemplate(layout), data: JSON.stringify(data) };
+  const { pdf, logs } = await renderReport(model, opts);
+  assert.equal(Buffer.from(pdf.slice(0, 5)).toString(), '%PDF-');
+  assert.ok(!logs.some((l) => l.level === 'error'), JSON.stringify(logs));
 });
