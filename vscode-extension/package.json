@@ -80,6 +80,17 @@
         "command": "reportDesigner.syncLibs",
         "title": "Sync Libraries to Server",
         "category": "Report Designer"
+      },
+      {
+        "command": "reportDesigner.setServerKey",
+        "title": "Set Server API Key...",
+        "category": "Report Designer",
+        "icon": "$(key)"
+      },
+      {
+        "command": "reportDesigner.clearServerKey",
+        "title": "Clear Server API Key...",
+        "category": "Report Designer"
       }
     ],
     "menus": {

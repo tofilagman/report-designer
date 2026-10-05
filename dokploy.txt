@@ -9,6 +9,9 @@ services:
       - '8088'
     environment:
       TZ: Asia/Manila
+      # API key required on every request (generate with: openssl rand -hex 32).
+      # Leave unset only on a private network: without it the server is open to anyone.
+      REPORT_SERVER_KEY: ${REPORT_SERVER_KEY}
       JAVA_OPTS: >
         -Xms1024m
         -Xmx2048m

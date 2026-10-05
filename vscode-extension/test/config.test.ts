@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { configTemplate, findConfigFile, parseConfig } from '../src/config/parse';
+import { MIN_KEY_LENGTH, validateKey } from '../src/keyRules';
 
 const FILE = '/proj/reports/report-designer.toml';
 
@@ -88,4 +89,12 @@ test('nearest config wins and lookup stops at the workspace root', () => {
   assert.equal(findConfigFile(nested, root), join(root, 'a', 'report-designer.toml'));
   assert.equal(findConfigFile(root, root), join(root, 'report-designer.toml'));
   assert.equal(findConfigFile(nested, nested), undefined);
+});
+
+test('server keys must match the server rules: 32+ characters, no spaces', () => {
+  assert.equal(MIN_KEY_LENGTH, 32);
+  assert.match(validateKey('short') ?? '', /at least 32/);
+  assert.match(validateKey('a'.repeat(20) + ' ' + 'b'.repeat(20)) ?? '', /spaces/);
+  assert.equal(validateKey('a'.repeat(64)), undefined);
+  assert.equal(validateKey(`  ${'f'.repeat(32)}  `), undefined);
 });

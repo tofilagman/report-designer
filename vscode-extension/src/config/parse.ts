@@ -218,7 +218,9 @@ url = "${opts.deployUrl ?? 'http://localhost:8088'}"
 
 # [deploy.targets.prod]
 # url = "https://reports.example.com"
-# token_env = "REPORT_SERVER_PROD_TOKEN"   # name of an env var, never the token itself
+
+# Servers with REPORT_SERVER_KEY set need its key: run "Report Designer: Set Server API Key".
+# Keys are kept in the OS keychain, never in this file.
 
 # [render]
 # chrome_path = "/usr/bin/google-chrome-stable"   # overrides the reportDesigner.chromePath setting
