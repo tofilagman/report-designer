@@ -1,42 +1,50 @@
 # Generic Report Designer
 
-Screenshot
-![image](samples/sample.png)
+PDF reports from Handlebars templates: designed in VS Code, rendered by a report server.
+
+| Folder | |
+|---|---|
+| [`vscode-extension/`](vscode-extension/) | The designer: a VS Code extension that opens `.zrpt` reports, with a visual builder, live preview and publishing. See its [README](vscode-extension/README.md). |
+| [`report-server/`](report-server/) | Kotlin / Spring Boot server that renders published templates to PDF (Docker image `tofilagman/report-server`) |
+| [`report-server-netcore/`](report-server-netcore/) | .NET library (`z.Report.Server`) for rendering reports inside your own application |
+| [`libs/`](libs/) | Shared JavaScript libraries injected into every render: Handlebars, moment, chart.js, qrcode and `Processor.js` |
+
+- templates use [Handlebars](https://handlebarsjs.com/)
+- images are embedded as resources and referenced with `{{resource '[guid]'}}`
+- custom JS libraries such as charts and QR codes go in `libs/`, with a Handlebars helper (see the QR code sample below)
+- reports are saved as `.zrpt` files (BSON)
+
 Sample Postman request using live data
 ![image](samples/sample-server-rendering.png)
 
-Written in javascript under electron js
-- editor uses Handlebars.js as templating engine https://handlebarsjs.com/
-- supports local resources to handle images via `{{resource '[guid]'}}` snippet
-- allow adding custom js libraries like charts and qrcodes
-- allow async loading for internet dependent files
+## Designer
 
+Build and install the VS Code extension:
 
-### build
 ```bash
+cd vscode-extension
 npm install
-npm run dist
-# for windows
-npm run dist:win
-```
-copy the executable from <workspace>/dist/Report Designer-1.0.0-x86_64.AppImage and paste somewhere else 
-open terminal and look for the chrome executable file 
-
-```bash
-whereis google-chrome-stable
+npm run package
+code --install-extension report-designer-0.1.0.vsix
 ```
 
-create environment file .env alongside the executable and write the config below, path should come from the whereis result command
-
-```bash
-CHROME_PATH=/usr/bin/google-chrome-stable
-LIBS=/home/libs
-```
-
-* file is save as <filename>.zrpt which used BSON encoding
-* add your javascript library in libs folder and create a handlebar helper, see QRCode sample below
+Opening a `.zrpt` file then opens the designer. Each project folder has a `report-designer.toml` that points at its `libs` folder and the report servers to publish to.
 
 # Report Server
+
+### Security
+
+Set `REPORT_SERVER_KEY` on the server and every request (publish, library sync, test connection and rendering) must send it as `Authorization: Bearer <key>`. Without it the server answers `401`. Only the Swagger docs at `/docs` stay open.
+
+```bash
+# generate a key (64 hex characters; the server refuses keys shorter than 32)
+openssl rand -hex 32
+```
+
+- **docker-compose / Dokploy:** set `REPORT_SERVER_KEY` in the environment; the compose files pass it through.
+- **VS Code extension:** run **Report Designer: Set Server API Key** (or **Set key** in the Settings tab) and paste the key. It's stored in the OS keychain, not in `report-designer.toml`.
+
+If `REPORT_SERVER_KEY` isn't set the server stays open and logs a warning at startup, so existing deployments keep running until a key is added.
 
 ```text
 run docker-compose.yml
@@ -60,7 +68,8 @@ cp libs /etc/dokploy/compose/reportserver-report-b0ruel/files/
 ```curl
 curl --request GET \
   --url http://localhost:8088/render/tpl-issuance-history.zrpt/ppp.json \
-  --header 'accept: text/plain'
+  --header 'accept: text/plain' \
+  --header "Authorization: Bearer $REPORT_SERVER_KEY"
 ```
 - make sure tpl-issuance-history.zrpt exists in temp/report
 - make sure ppp.json exists in temp/data
@@ -70,6 +79,7 @@ curl --request GET \
 curl --request POST \
   --url http://localhost:8088/render/text/tpl-issuance-history \
   --header 'accept: text/plain' \
+  --header "Authorization: Bearer $REPORT_SERVER_KEY" \
   --header 'content-type: application/json' \
   --data '<json data here>'
 ```
@@ -79,6 +89,7 @@ curl --request POST \
 curl --request POST \
   --url http://localhost:8088/render/pdf/tpl-issuance-history \
   --header 'accept: text/plain' \
+  --header "Authorization: Bearer $REPORT_SERVER_KEY" \
   --header 'content-type: application/json' \
   --data '<json data here>'
 ```

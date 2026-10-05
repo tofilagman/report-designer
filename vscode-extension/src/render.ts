@@ -82,8 +82,8 @@ export class BrowserPool {
 }
 
 /**
- * Renders a report to PDF with the same page setup and script order as the Electron
- * designer and both servers, so a preview here matches what the server produces.
+ * Renders a report to PDF with the same page setup and script order as both servers,
+ * so a preview here matches what the server produces.
  */
 export async function renderReport(model: ReportModel, opts: RenderOptions): Promise<{ pdf: Uint8Array; logs: RenderLog[] }> {
   const logs: RenderLog[] = [];

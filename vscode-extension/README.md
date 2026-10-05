@@ -8,7 +8,7 @@ Design Handlebars PDF report templates (`.zrpt`) inside VS Code. Opening a `.zrp
 - **Publish** and **Sync Libs** upload to a report server (`report-server/` in this repo)
 - Save, undo inside the editors, dirty state, revert and hot exit work like any VS Code editor
 
-`.zrpt` files are unchanged from the Electron designer, so both tools and both servers read the same files.
+`.zrpt` files are the format both report servers read, and files saved by the earlier Electron designer open unchanged.
 
 ## Visual builder (prototype)
 
@@ -45,15 +45,19 @@ url = "http://localhost:8088"
 
 [deploy.targets.prod]
 url = "https://reports.example.com"
-token_env = "REPORT_SERVER_PROD_TOKEN"   # sent as a Bearer token; the token itself never goes in this file
+# token_env = "REPORT_SERVER_PROD_TOKEN"   # optional: read the API key from an env var (CI); never put the key here
 
 # [render]
 # chrome_path = "/usr/bin/google-chrome-stable"
 ```
 
+### Server API keys
+
+When a report server has `REPORT_SERVER_KEY` set, run **Report Designer: Set Server API Key** (or click **Set key** next to the target in the Settings tab) and paste the key. Keys are stored per server URL in VS Code's SecretStorage (the OS keychain), never in `report-designer.toml`, and sent as `Authorization: Bearer <key>` on publish, library sync and **Test**. A `401` from the server offers to set or change the key. `token_env` is still honoured when no key is stored, for CI and scripts. **Clear Server API Key** removes a stored key.
+
 Problems in the file show in the Problems panel. Unknown keys are warnings, so newer config files still load.
 
-Run **Report Designer: Create Project Config** (also in the Explorer folder context menu) to write a starter file. Opening a report saved by the Electron app that still carries its own `deploymentUrl` offers to create one from that URL.
+Run **Report Designer: Create Project Config** (also in the Explorer folder context menu) to write a starter file. Opening a report saved by the old Electron designer, which kept its server URL in each file (`deploymentUrl`), offers to create one from that URL.
 
 ### Precedence
 
@@ -76,6 +80,8 @@ Rendering needs Chrome, Chromium, Edge or Brave. The browser is found in this or
 | Report Designer: Publish Report | Save, then upload to the default target (or the one picked in the toolbar) |
 | Report Designer: Publish Report to Target... | Pick a target, then publish |
 | Report Designer: Sync Libraries to Server | Upload the `[libs]` folder's `.js` files |
+| Report Designer: Set Server API Key... | Store the server's `REPORT_SERVER_KEY` for a target in the OS keychain |
+| Report Designer: Clear Server API Key... | Remove a stored key |
 
 After publishing `invoice.zrpt`, the server renders it at `POST <url>/render/pdf/invoice` (PDF) or `POST <url>/render/text/invoice` (base64 data URI) with the JSON data as the body.
 
