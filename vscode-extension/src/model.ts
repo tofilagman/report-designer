@@ -9,8 +9,8 @@ export interface Asset {
 }
 
 /**
- * Contents of a .zrpt file. The shape matches what the Electron designer writes and
- * what the Kotlin and .NET servers read, so files stay interchangeable.
+ * Contents of a .zrpt file. The shape is what the Kotlin and .NET servers read, and what
+ * the earlier Electron designer wrote, so existing files open unchanged.
  */
 export interface ReportModel {
   name: string;

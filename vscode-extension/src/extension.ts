@@ -1,17 +1,20 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import * as vscode from 'vscode';
-import { CONFIG_FILE_NAME, configTemplate } from './config/parse';
+import { CONFIG_FILE_NAME, configTemplate, DeployTarget } from './config/parse';
 import { ConfigService } from './config/service';
 import { DesignerProvider, VIEW_TYPE } from './designerProvider';
 import { encodeReport, newReport } from './model';
 import { BrowserPool } from './render';
+import { ServerKeys, validateKey } from './serverKeys';
+import { ConfigLensProvider } from './configLens';
 
 export function activate(context: vscode.ExtensionContext) {
   const configs = new ConfigService();
   const log = vscode.window.createOutputChannel('Report Designer', { log: true });
   const browsers = new BrowserPool();
-  const provider = new DesignerProvider(context, configs, log, browsers);
+  const keys = new ServerKeys(context.secrets);
+  const provider = new DesignerProvider(context, configs, log, browsers, keys);
 
   context.subscriptions.push(
     configs,
@@ -36,6 +39,17 @@ export function activate(context: vscode.ExtensionContext) {
       }),
     ),
     vscode.commands.registerCommand('reportDesigner.syncLibs', () => withActive(provider, (e) => provider.syncLibs(e))),
+    vscode.languages.registerCodeLensProvider({ scheme: 'file', pattern: `**/${CONFIG_FILE_NAME}` }, new ConfigLensProvider(configs, keys)),
+    vscode.commands.registerCommand('reportDesigner.deployProject', async (arg?: vscode.Uri, target?: string) => {
+      try {
+        const file = await projectConfigFor(provider, configs, arg);
+        if (file) await provider.deployProject(file, target);
+      } catch (err) {
+        vscode.window.showErrorMessage(`Report Designer: ${(err as Error).message}`);
+      }
+    }),
+    vscode.commands.registerCommand('reportDesigner.setServerKey', (target?: DeployTarget) => setServerKeyCommand(provider, configs, keys, target)),
+    vscode.commands.registerCommand('reportDesigner.clearServerKey', (target?: DeployTarget) => clearServerKeyCommand(provider, configs, keys, target)),
   );
 
   // Surface problems in every project config up front, not only once a report is opened.
@@ -123,4 +137,97 @@ async function createConfigCommand(folderArg?: vscode.Uri, deployUrl?: string) {
     await vscode.workspace.fs.writeFile(uri, Buffer.from(configTemplate({ deployUrl }), 'utf8'));
   }
   await vscode.window.showTextDocument(uri);
+}
+
+/** Deploy targets to choose from: the active report's config, else every config in the workspace. */
+async function knownTargets(provider: DesignerProvider, configs: ConfigService): Promise<DeployTarget[]> {
+  const active = provider.activeEditor;
+  let targets = active ? provider.targetsFor(active.document) : [];
+  if (!targets.length) {
+    const files = await vscode.workspace.findFiles(`**/${CONFIG_FILE_NAME}`, '**/node_modules/**');
+    targets = files.flatMap((f) => configs.resolve(vscode.Uri.file(dirname(f.fsPath)), true).config?.deploy.targets ?? []);
+  }
+  // One entry per server: keys are stored per URL.
+  return [...new Map(targets.map((t) => [t.url.toLowerCase(), t])).values()];
+}
+
+async function pickKeyTarget(
+  provider: DesignerProvider,
+  configs: ConfigService,
+  keys: ServerKeys,
+  title: string,
+): Promise<DeployTarget | undefined> {
+  const targets = await knownTargets(provider, configs);
+  if (!targets.length) {
+    vscode.window.showWarningMessage('No deploy targets found. Add [deploy.targets] to a report-designer.toml first.');
+    return undefined;
+  }
+  const items = await Promise.all(
+    targets.map(async (t) => ({
+      label: t.name,
+      description: t.url,
+      detail: t.key ? '$(key) Key in report-designer.toml' : (await keys.has(t.url)) ? '$(key) Key stored' : t.tokenEnv ? `Uses $${t.tokenEnv}` : 'No key',
+      target: t,
+    })),
+  );
+  return (await vscode.window.showQuickPick(items, { title }))?.target;
+}
+
+async function setServerKeyCommand(provider: DesignerProvider, configs: ConfigService, keys: ServerKeys, target?: DeployTarget) {
+  target ??= await pickKeyTarget(provider, configs, keys, 'Set API key for which server?');
+  if (!target) return;
+  if (target.key) {
+    vscode.window.showInformationMessage(
+      `${target.name} has its key in report-designer.toml, which takes precedence. Edit it there, or remove it to use a keychain key.`,
+    );
+    return;
+  }
+  const key = await vscode.window.showInputBox({
+    title: `API key for ${target.name}`,
+    prompt: `The REPORT_SERVER_KEY configured on ${target.url}. Stored in your OS keychain, never in report-designer.toml.`,
+    placeHolder: 'e.g. the output of: openssl rand -hex 32',
+    password: true,
+    ignoreFocusOut: true,
+    validateInput: validateKey,
+  });
+  if (key === undefined) return;
+  await keys.set(target.url, key);
+  vscode.window.showInformationMessage(`API key saved for ${target.name} (${target.url}). Use Test in the designer toolbar to check it.`);
+}
+
+async function clearServerKeyCommand(provider: DesignerProvider, configs: ConfigService, keys: ServerKeys, target?: DeployTarget) {
+  target ??= await pickKeyTarget(provider, configs, keys, 'Remove the stored API key for which server?');
+  if (!target) return;
+  await keys.delete(target.url);
+  vscode.window.showInformationMessage(`Removed the stored API key for ${target.name} (${target.url}).`);
+}
+
+/**
+ * The report-designer.toml to deploy: the one passed in (from a CodeLens, the editor title or
+ * the Explorer), else the active config file or the active report's config, else a pick.
+ */
+async function projectConfigFor(provider: DesignerProvider, configs: ConfigService, arg?: vscode.Uri): Promise<string | undefined> {
+  const fromUri = (uri: vscode.Uri) => {
+    if (uri.fsPath.endsWith(CONFIG_FILE_NAME)) return uri.fsPath;
+    const isFolder = !uri.fsPath.toLowerCase().endsWith('.zrpt');
+    return configs.resolve(uri, isFolder).file;
+  };
+  if (arg) return fromUri(arg);
+  const active = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+  if (active instanceof vscode.TabInputText && active.uri.fsPath.endsWith(CONFIG_FILE_NAME)) return active.uri.fsPath;
+  if (provider.activeEditor) {
+    const file = fromUri(provider.activeEditor.document.uri);
+    if (file) return file;
+  }
+  const files = await vscode.workspace.findFiles(`**/${CONFIG_FILE_NAME}`, '**/node_modules/**');
+  if (files.length === 1) return files[0].fsPath;
+  if (!files.length) {
+    vscode.window.showWarningMessage(`No ${CONFIG_FILE_NAME} in this workspace. Run "Report Designer: Create Project Config" first.`);
+    return undefined;
+  }
+  const pick = await vscode.window.showQuickPick(
+    files.map((f) => ({ label: vscode.workspace.asRelativePath(f), file: f.fsPath })),
+    { title: 'Deploy which project?' },
+  );
+  return pick?.file;
 }

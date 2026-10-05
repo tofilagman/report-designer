@@ -21,8 +21,15 @@ class OpenAPIConfiguration {
     fun openAPI(): OpenAPI? {
         return OpenAPI()
             .components(
-                Components()
+                Components().addSecuritySchemes(
+                    "apiKey",
+                    SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .description("The server's REPORT_SERVER_KEY")
+                )
             )
+            .addSecurityItem(SecurityRequirement().addList("apiKey"))
             .info(
                 Info().title(appName)
                     .description(appName)

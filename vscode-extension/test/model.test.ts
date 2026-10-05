@@ -4,7 +4,8 @@ import { BSON } from 'bson';
 import { parseConfig } from '../src/config/parse';
 import { decodeReport, encodeReport, newReport } from '../src/model';
 
-// Exactly what the Electron designer's save() writes (margins come from text inputs).
+// Exactly what the former Electron designer's save() wrote (margins came from text inputs);
+// those files still need to open.
 const electronFile = {
   name: 'Invoice',
   landscape: false,

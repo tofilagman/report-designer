@@ -4,7 +4,9 @@ import * as vscode from 'vscode';
 import { resolveChromePath } from './chrome';
 import type { DeployTarget } from './config/parse';
 import { ConfigService, ResolvedConfig } from './config/service';
-import { publishTemplate, syncLibs, testConnection } from './deploy';
+import { DeployError, DeployTargetWithKey, publishTemplate, syncLibs, testConnection } from './deploy';
+import type { ServerKeys } from './serverKeys';
+import { findProjectReports, nameClashes } from './projectDeploy';
 import { ReportDocument } from './document';
 import type { ReportLayout } from './builder/layout';
 import type { Asset, EditableFields } from './model';
@@ -45,6 +47,8 @@ type FromWebview =
   | { type: 'addAssets' }
   | { type: 'copyAsset' | 'deleteAsset'; id: string }
   | { type: 'createConfig' | 'openConfig' | 'showLog' }
+  | { type: 'setServerKey'; target: string }
+  | { type: 'deployProject'; target?: string }
   | { type: 'clientLog'; level: 'info' | 'warn' | 'error'; message: string };
 
 interface Editor {
@@ -75,7 +79,9 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     private readonly configs: ConfigService,
     private readonly log: vscode.LogOutputChannel,
     private readonly browsers: BrowserPool,
+    private readonly keys: ServerKeys,
   ) {
+    context.subscriptions.push(keys.onDidChange(() => this.editors.forEach((e) => this.postConfig(e))));
     context.subscriptions.push(
       configs.onDidChange(() =>
         this.editors.forEach((e) => {
@@ -258,6 +264,7 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     const find = (uri: vscode.Uri) => [...this.editors].find((e) => e.document.uri.toString() === uri.toString())?.document;
     return {
       model: (uri: vscode.Uri) => find(uri)?.model,
+      setKey: (url: string, key: string | undefined) => (key ? this.keys.set(url, key) : this.keys.delete(url)),
       /** Delivers a message as if the webview had sent it. */
       message: async (uri: vscode.Uri, msg: FromWebview) => {
         const editor = [...this.editors].find((e) => e.document.uri.toString() === uri.toString());
@@ -334,10 +341,13 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     if (!(await this.ensureSaved(document))) return;
 
     const template = basename(document.uri.fsPath, extname(document.uri.fsPath));
-    await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Publishing ${template} to ${target.name}` },
-      () => publishTemplate(target, document.uri.fsPath),
+    const done = await this.withKey(target, (t) =>
+      vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Publishing ${template} to ${target.name}` },
+        () => publishTemplate(t, document.uri.fsPath),
+      ),
     );
+    if (!done) return;
     vscode.window.showInformationMessage(`Published ${template} to ${target.name}. Render with POST ${target.url}/render/pdf/${template}`);
   }
 
@@ -345,11 +355,122 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     const target = await this.pickTarget(editor.document, targetName);
     if (!target) return;
     const libsPath = this.configs.resolve(editor.document.uri).config?.libsPath;
-    const names = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Syncing libraries to ${target.name}` },
-      () => syncLibs(target, libsPath, vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'Processor.js').fsPath),
+    const names = await this.withKey(target, (t) =>
+      vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Syncing libraries to ${target.name}` },
+        () => syncLibs(t, libsPath, vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'Processor.js').fsPath),
+      ),
     );
+    if (!names) return;
     vscode.window.showInformationMessage(`Synced ${names.length} libraries to ${target.name}: ${names.join(', ')}`);
+  }
+
+  /**
+   * Syncs a project's libraries to a target, then publishes every report the config covers.
+   * A wrong key or unreachable server stops the run; a single report failing doesn't.
+   */
+  async deployProject(configFile: string, targetName?: string): Promise<void> {
+    const resolved = this.configs.resolve(vscode.Uri.file(dirname(configFile)), true);
+    if (!resolved.config) {
+      vscode.window.showErrorMessage(`${basename(configFile)} has errors; fix them in the Problems panel first.`);
+      await vscode.window.showTextDocument(vscode.Uri.file(configFile));
+      return;
+    }
+    const targets = resolved.config.deploy.targets;
+    if (!targets.length) {
+      vscode.window.showWarningMessage(`${basename(configFile)} has no [deploy.targets] to deploy to.`);
+      return;
+    }
+    let target = targets.find((t) => t.name === (targetName ?? resolved.config!.deploy.defaultTarget));
+    if (!target) {
+      target = (
+        await vscode.window.showQuickPick(
+          targets.map((t) => ({ label: t.name, description: t.url, target: t })),
+          { title: 'Deploy project to' },
+        )
+      )?.target;
+      if (!target) return;
+    }
+
+    const reports = findProjectReports(configFile);
+    const root = dirname(configFile);
+    const rel = (f: string) => vscode.workspace.asRelativePath(f, false);
+    const clashes = nameClashes(reports);
+    if (clashes.size) {
+      const list = [...clashes.values()].map((files) => files.map(rel).join(' and ')).join('; ');
+      vscode.window.showErrorMessage(
+        `Nothing was deployed: these reports share a file name and would overwrite each other on the server: ${list}. Rename one of each.`,
+        { modal: true },
+      );
+      return;
+    }
+
+    const dirty = vscode.window.tabGroups.all
+      .flatMap((g) => g.tabs)
+      .filter((t) => t.isDirty && t.input instanceof vscode.TabInputCustom && reports.includes(t.input.uri.fsPath))
+      .map((t) => (t.input as vscode.TabInputCustom).uri);
+    if (dirty.length) {
+      const pick = await vscode.window.showWarningMessage(
+        `${dirty.length} report${dirty.length === 1 ? ' has' : 's have'} unsaved changes. Save before deploying?`,
+        { modal: true, detail: dirty.map((u) => rel(u.fsPath)).join('\n') },
+        'Save and Deploy',
+      );
+      if (pick !== 'Save and Deploy') return;
+      for (const uri of dirty) await vscode.workspace.save(uri);
+    }
+
+    const fallbackProcessor = vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'Processor.js').fsPath;
+    const failed: string[] = [];
+    let published = 0;
+    let libCount = 0;
+    const label = `[deploy ${basename(root)} → ${target.name}]`;
+    this.log.info(`${label} ${reports.length} report(s) to ${target.url}`);
+
+    const done = await this.withKey(target, (t) =>
+      vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Deploying ${basename(root)} to ${t.name}`, cancellable: true },
+        async (progress, token) => {
+          const step = 100 / (reports.length + 1);
+          progress.report({ message: 'syncing libraries' });
+          const libs = await syncLibs(t, resolved.config!.libsPath, fallbackProcessor);
+          libCount = libs.length;
+          this.log.info(`${label} synced ${libs.join(', ')}`);
+          progress.report({ increment: step });
+
+          for (const report of reports) {
+            if (token.isCancellationRequested) break;
+            progress.report({ message: rel(report) });
+            try {
+              await publishTemplate(t, report);
+              published++;
+              this.log.info(`${label} published ${rel(report)}`);
+            } catch (err) {
+              // A rejected key or unreachable server would fail every report the same way: stop.
+              if (!(err instanceof DeployError) || err.status === undefined || err.status === 401) throw err;
+              failed.push(`${rel(report)}: ${err.message}`);
+              this.log.error(`${label} ${rel(report)}: ${err.message}`);
+            }
+            progress.report({ increment: step });
+          }
+          return true;
+        },
+      ),
+    );
+    if (!done) return;
+
+    const skipped = reports.length - published - failed.length;
+    const summary =
+      `Deployed ${basename(root)} to ${target.name}: synced ${libCount} librar${libCount === 1 ? 'y' : 'ies'}, ` +
+      `published ${published} of ${reports.length} report${reports.length === 1 ? '' : 's'}` +
+      (skipped ? ` (cancelled, ${skipped} not sent)` : '') +
+      (failed.length ? `, ${failed.length} failed` : '') +
+      '.';
+    this.log.info(`${label} ${summary}`);
+    if (failed.length || skipped) {
+      if ((await vscode.window.showWarningMessage(summary, 'Show Log')) === 'Show Log') this.log.show(true);
+    } else {
+      vscode.window.showInformationMessage(summary);
+    }
   }
 
   // ---- webview messages ----
@@ -385,10 +506,26 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
       case 'testConnection': {
         const target = await this.pickTarget(document, msg.target);
         if (!target) return;
-        await testConnection(target);
-        vscode.window.showInformationMessage(`Connected to ${target.name} (${target.url})`);
+        const ok = await this.withKey(target, async (t) => {
+          await testConnection(t);
+          return true;
+        });
+        if (ok) {
+          const secured = !!target.key || (await this.keys.has(target.url)) || !!target.tokenEnv;
+          vscode.window.showInformationMessage(
+            `Connected to ${target.name} (${target.url})${secured ? ' and the API key was accepted' : ''}`,
+          );
+        }
         return;
       }
+      case 'deployProject': {
+        const file = this.configs.resolve(document.uri).file;
+        if (file) await this.deployProject(file, msg.target);
+        return;
+      }
+      case 'setServerKey':
+        await vscode.commands.executeCommand('reportDesigner.setServerKey', this.targetsFor(document).find((t) => t.name === msg.target));
+        return;
       case 'addAssets':
         return this.addAssets(document);
       case 'copyAsset':
@@ -466,14 +603,57 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     });
   }
 
-  private postConfig(editor: Editor) {
+  /**
+   * Runs a deploy call with the target's stored API key. A 401 offers to set the key and
+   * resolves to undefined, so callers skip their success message.
+   */
+  private async withKey<T>(target: DeployTarget, fn: (t: DeployTargetWithKey) => Thenable<T>): Promise<T | undefined> {
+    // A key written in report-designer.toml wins; otherwise the keychain, then token_env.
+    const key = target.key ?? (await this.keys.get(target.url));
+    try {
+      return await fn({ ...target, key });
+    } catch (err) {
+      if (!(err instanceof DeployError) || err.status !== 401) throw err;
+      this.log.warn(`[${target.name}] ${err.message}`);
+      if (target.key) {
+        const pick = await vscode.window.showErrorMessage(`${err.message} The key comes from report-designer.toml.`, 'Open Config');
+        const file = pick && this.configFileForTarget(target);
+        if (file) await vscode.window.showTextDocument(vscode.Uri.file(file));
+        return undefined;
+      }
+      const pick = await vscode.window.showErrorMessage(err.message, key ? 'Change Server Key' : 'Set Server Key');
+      if (pick) await vscode.commands.executeCommand('reportDesigner.setServerKey', target);
+      return undefined;
+    }
+  }
+
+  private configFileForTarget(target: DeployTarget): string | undefined {
+    for (const e of this.editors) {
+      const r = this.configs.resolve(e.document.uri);
+      if (r.config?.deploy.targets.some((t) => t.name === target.name && t.url === target.url)) return r.file;
+    }
+    return undefined;
+  }
+
+  targetsFor(document: ReportDocument): DeployTarget[] {
+    return this.configs.resolve(document.uri).config?.deploy.targets ?? [];
+  }
+
+  private async postConfig(editor: Editor) {
     const r = this.configs.resolve(editor.document.uri);
+    const targets = await Promise.all(
+      (r.config?.deploy.targets ?? []).map(async (t) => ({
+        name: t.name,
+        url: t.url,
+        auth: t.key ? 'config' : (await this.keys.has(t.url)) ? 'key' : t.tokenEnv ? `env ${t.tokenEnv}` : 'none',
+      })),
+    );
     editor.panel.webview.postMessage({
       type: 'config',
       config: {
         file: r.file,
         libsPath: r.config?.libsPath,
-        targets: r.config?.deploy.targets.map((t) => ({ name: t.name, url: t.url })) ?? [],
+        targets,
         defaultTarget: r.config?.deploy.defaultTarget,
         errors: r.issues.filter((i) => i.severity === 'error').map((i) => i.message),
         legacyUrl: editor.document.model.deploymentUrl ?? undefined,
@@ -520,7 +700,7 @@ export class DesignerProvider implements vscode.CustomEditorProvider<ReportDocum
     }
   }
 
-  /** Reports saved by the Electron app carry their own server URL; offer to move it into a shared config. */
+  /** Reports saved by the old Electron designer carry their own server URL; offer to move it into a shared config. */
   private async offerConfigMigration(document: ReportDocument) {
     const url = document.model.deploymentUrl;
     const folder = dirname(document.uri.fsPath);

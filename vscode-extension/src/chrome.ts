@@ -34,7 +34,7 @@ function candidates(): string[] {
 /**
  * Picks the browser used for rendering, in precedence order:
  * report-designer.toml [render] chrome_path, the reportDesigner.chromePath setting,
- * the CHROME_PATH env var (what the Electron app used), then auto-detection.
+ * the CHROME_PATH env var, then auto-detection.
  */
 export function resolveChromePath(fromConfig?: string, fromSetting?: string): string | undefined {
   for (const explicit of [fromConfig, fromSetting, process.env.CHROME_PATH]) {

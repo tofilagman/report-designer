@@ -89,3 +89,29 @@ test('unreachable server gives a readable error', async () => {
   await new Promise((r) => probe.close(r));
   await assert.rejects(testConnection({ name: 'gone', url: `http://127.0.0.1:${port}` }), /Could not reach gone .*ECONNREFUSED/);
 });
+
+test('a stored key is sent as the bearer token and wins over token_env', async () => {
+  received = [];
+  process.env.RD_TEST_TOKEN = 'from-env';
+  await testConnection({ ...target(), tokenEnv: 'RD_TEST_TOKEN', key: 'stored-key' });
+  assert.equal(received[0].auth, 'Bearer stored-key');
+  delete process.env.RD_TEST_TOKEN;
+});
+
+test('401 explains whether the key is missing or wrong', async () => {
+  status = 401;
+  try {
+    await assert.rejects(testConnection(target()), (err: DeployError) => {
+      assert.equal(err.status, 401);
+      assert.match(err.message, /dev requires an API key/);
+      return true;
+    });
+    await assert.rejects(testConnection({ ...target(), key: 'k' }), (err: DeployError) => {
+      assert.equal(err.status, 401);
+      assert.match(err.message, /dev rejected the API key/);
+      return true;
+    });
+  } finally {
+    status = 200;
+  }
+});

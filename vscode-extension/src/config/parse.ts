@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { parse, TomlError } from 'smol-toml';
+import { validateKey } from '../keyRules';
 
 export const CONFIG_FILE_NAME = 'report-designer.toml';
 export const CONFIG_VERSION = 1;
@@ -19,7 +20,9 @@ export interface Margin {
 export interface DeployTarget {
   name: string;
   url: string;
-  /** Name of the environment variable holding a bearer token. The token itself never lives in the file. */
+  /** The server's API key, written in the config. Takes precedence over a keychain key and token_env. */
+  key?: string;
+  /** Name of an environment variable holding the API key, for CI and scripts. */
   tokenEnv?: string;
 }
 
@@ -161,11 +164,19 @@ export function parseConfig(text: string, file: string): ParseResult {
         error(`deploy.targets.${name}.token_env must be the name of an environment variable`, 'token_env');
       }
       if (t.token !== undefined) {
-        error(`deploy.targets.${name}: don't store tokens in this file; use token_env instead`, 'token');
+        error(`deploy.targets.${name}.token is not a setting; the API key goes in "key"`, `deploy.targets.${name}:token`);
+      }
+      let key: string | undefined;
+      if (t.key !== undefined) {
+        // Same rule the server applies to REPORT_SERVER_KEY, so a typo shows here rather than as a 401.
+        const problem = typeof t.key === 'string' ? validateKey(t.key) : 'must be a string';
+        if (problem) error(`deploy.targets.${name}.key: ${problem}`, `deploy.targets.${name}:key`);
+        else key = (t.key as string).trim();
       }
       config.deploy.targets.push({
         name,
         url: t.url.replace(/\/+$/, ''),
+        key,
         tokenEnv: typeof t.token_env === 'string' ? t.token_env : undefined,
       });
     }
@@ -213,12 +224,19 @@ margin = { top = "20", right = "20", bottom = "20", left = "20" }
 [deploy]
 default = "dev"
 
+# One table per server; add as many as you need. A server with REPORT_SERVER_KEY set needs
+# that key: put it in "key" here, or keep it out of this file with
+# "Report Designer: Set Server API Key" (stored in your OS keychain).
 [deploy.targets.dev]
 url = "${opts.deployUrl ?? 'http://localhost:8088'}"
+# key = "<the server's REPORT_SERVER_KEY>"
+
+# [deploy.targets.staging]
+# url = "https://reports-staging.example.com"
+# key = "<staging key>"
 
 # [deploy.targets.prod]
 # url = "https://reports.example.com"
-# token_env = "REPORT_SERVER_PROD_TOKEN"   # name of an env var, never the token itself
 
 # [render]
 # chrome_path = "/usr/bin/google-chrome-stable"   # overrides the reportDesigner.chromePath setting
@@ -248,6 +266,20 @@ function resolvePath(base: string, p: string): string {
  * either as a `[table.header]` or as `key =`. smol-toml doesn't report value positions.
  */
 function locate(text: string, key: string): { line?: number; column?: number } {
+  // "deploy.targets.dev:key" means the `key =` line inside [deploy.targets.dev].
+  const scoped = /^(.+):([\w-]+)$/.exec(key);
+  if (scoped) {
+    const lines = text.split(/\r?\n/);
+    const header = locate(text, scoped[1]).line;
+    if (header) {
+      const assign = new RegExp(`^\\s*${scoped[2]}\\s*=`);
+      for (let i = header; i < lines.length && !/^\s*\[/.test(lines[i]); i++) {
+        if (assign.test(lines[i])) return { line: i + 1, column: lines[i].search(/\S/) + 1 };
+      }
+      return { line: header, column: 1 };
+    }
+    return {};
+  }
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const patterns = [new RegExp(`^\\s*\\[\\s*${escaped}\\s*\\]`), new RegExp(`^\\s*${escaped.split('\\.').pop()}\\s*=`)];
   const lines = text.split(/\r?\n/);

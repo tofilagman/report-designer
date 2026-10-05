@@ -159,11 +159,11 @@
     }
     box.append(definition('Config', config.file));
     box.append(definition('Libraries', config.libsPath || '(not set)'));
-    box.append(
-      definition('Targets', config.targets.length
-        ? config.targets.map((t) => `${t.name}${t.name === config.defaultTarget ? ' (default)' : ''}: ${t.url}`).join('\n')
-        : '(none)'),
-    );
+    box.append(targetList());
+    if (config.targets.length) {
+      box.append(button('Deploy whole project…', () => post({ type: 'deployProject', target: selectedTarget() })));
+      box.append(para('Syncs the libraries, then publishes every report this config covers to the target selected in the toolbar.'));
+    }
     if (config.errors.length) {
       const ul = document.createElement('ul');
       ul.className = 'errors';
@@ -171,6 +171,29 @@
       box.append(ul);
     }
     box.append(button('Open report-designer.toml', () => post({ type: 'openConfig' })));
+  }
+
+  /** Deploy targets with their API key status; keys live in the OS keychain, not the config file. */
+  function targetList() {
+    const wrap = document.createElement('div');
+    wrap.className = 'def';
+    wrap.append(Object.assign(document.createElement('span'), { textContent: 'Targets' }));
+    if (!config.targets.length) {
+      wrap.append(Object.assign(document.createElement('code'), { textContent: '(none)' }));
+      return wrap;
+    }
+    const AUTH = { config: 'key in report-designer.toml', key: 'API key stored', none: 'no API key' };
+    for (const t of config.targets) {
+      const row = document.createElement('div');
+      row.className = 'target-row';
+      const label = `${t.name}${t.name === config.defaultTarget ? ' (default)' : ''}: ${t.url}`;
+      row.append(Object.assign(document.createElement('code'), { textContent: label }));
+      const status = AUTH[t.auth] || `key from $${t.auth.replace(/^env /, '')}`;
+      row.append(Object.assign(document.createElement('span'), { className: `auth ${t.auth === 'none' ? 'missing' : 'ok'}`, textContent: status }));
+      if (t.auth !== 'config') row.append(button(t.auth === 'key' ? 'Change key' : 'Set key', () => post({ type: 'setServerKey', target: t.name })));
+      wrap.append(row);
+    }
+    return wrap;
   }
 
   function para(text) {
