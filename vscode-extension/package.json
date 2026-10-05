@@ -2,7 +2,7 @@
   "name": "report-designer",
   "displayName": "Report Designer",
   "description": "Design Handlebars PDF report templates (.zrpt) inside VS Code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "tofilagman",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -91,6 +91,13 @@
         "command": "reportDesigner.clearServerKey",
         "title": "Clear Server API Key...",
         "category": "Report Designer"
+      },
+      {
+        "command": "reportDesigner.deployProject",
+        "title": "Deploy Project (Sync Libraries + Publish All Reports)",
+        "shortTitle": "Deploy Project",
+        "category": "Report Designer",
+        "icon": "$(cloud-upload)"
       }
     ],
     "menus": {
@@ -104,6 +111,11 @@
           "command": "reportDesigner.publish",
           "when": "activeCustomEditorId == reportDesigner.zrpt",
           "group": "navigation@2"
+        },
+        {
+          "command": "reportDesigner.deployProject",
+          "when": "resourceFilename == report-designer.toml",
+          "group": "navigation@1"
         }
       ],
       "explorer/context": [
@@ -115,6 +127,11 @@
         {
           "command": "reportDesigner.createConfig",
           "when": "explorerResourceIsFolder",
+          "group": "navigation@9"
+        },
+        {
+          "command": "reportDesigner.deployProject",
+          "when": "resourceFilename == report-designer.toml || explorerResourceIsFolder",
           "group": "navigation@9"
         }
       ],

@@ -25,7 +25,7 @@ Build and install the VS Code extension:
 cd vscode-extension
 npm install
 npm run package
-code --install-extension report-designer-0.1.0.vsix
+code --install-extension report-designer-0.2.0.vsix
 ```
 
 Opening a `.zrpt` file then opens the designer. Each project folder has a `report-designer.toml` that points at its `libs` folder and the report servers to publish to.
@@ -42,7 +42,7 @@ openssl rand -hex 32
 ```
 
 - **docker-compose / Dokploy:** set `REPORT_SERVER_KEY` in the environment; the compose files pass it through.
-- **VS Code extension:** run **Report Designer: Set Server API Key** (or **Set key** in the Settings tab) and paste the key. It's stored in the OS keychain, not in `report-designer.toml`.
+- **VS Code extension:** add `key = "…"` to the target in `report-designer.toml` (each target has its own URL and key), or keep it out of the file with **Report Designer: Set Server API Key**, which stores it in the OS keychain.
 
 If `REPORT_SERVER_KEY` isn't set the server stays open and logs a warning at startup, so existing deployments keep running until a key is added.
 

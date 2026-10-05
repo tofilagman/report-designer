@@ -17,7 +17,7 @@ test('starter template parses cleanly', () => {
   assert.equal(config.defaults.orientation, 'portrait');
   assert.deepEqual(config.defaults.margin, { top: '20', right: '20', bottom: '20', left: '20' });
   assert.equal(config.deploy.defaultTarget, 'dev');
-  assert.deepEqual(config.deploy.targets, [{ name: 'dev', url: 'http://srv:8088', tokenEnv: undefined }]);
+  assert.deepEqual(config.deploy.targets, [{ name: 'dev', url: 'http://srv:8088', key: undefined, tokenEnv: undefined }]);
 });
 
 test('paths resolve relative to the config file', () => {
@@ -97,4 +97,47 @@ test('server keys must match the server rules: 32+ characters, no spaces', () =>
   assert.match(validateKey('a'.repeat(20) + ' ' + 'b'.repeat(20)) ?? '', /spaces/);
   assert.equal(validateKey('a'.repeat(64)), undefined);
   assert.equal(validateKey(`  ${'f'.repeat(32)}  `), undefined);
+});
+
+test('each target can carry its own key', () => {
+  const dev = 'd'.repeat(64);
+  const staging = 's'.repeat(40);
+  const { config, issues } = parseConfig(
+    `version = 1
+[deploy]
+default = "dev"
+[deploy.targets.dev]
+url = "http://localhost:8088"
+key = "${dev}"
+[deploy.targets.staging]
+url = "https://staging.example.com"
+key = "  ${staging}  "
+[deploy.targets.prod]
+url = "https://reports.example.com"`,
+    FILE,
+  );
+  assert.deepEqual(issues, []);
+  assert.deepEqual(
+    config?.deploy.targets.map((t) => [t.name, t.key]),
+    [['dev', dev], ['staging', staging], ['prod', undefined]],
+  );
+});
+
+test('a bad key is reported on its own line, and "token" points to "key"', () => {
+  const text = `version = 1
+[deploy.targets.dev]
+url = "http://localhost:8088"
+key = "${'d'.repeat(64)}"
+[deploy.targets.staging]
+url = "https://staging.example.com"
+key = "too-short"
+token = "x"`;
+  const { config, issues } = parseConfig(text, FILE);
+  assert.equal(config, undefined);
+  const short = issues.find((i) => i.message.includes('staging.key'));
+  assert.match(short!.message, /at least 32/);
+  assert.equal(short!.line, 7);
+  const token = issues.find((i) => i.message.includes('.token'));
+  assert.match(token!.message, /goes in "key"/);
+  assert.equal(token!.line, 8);
 });
