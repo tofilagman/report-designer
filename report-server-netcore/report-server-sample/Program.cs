@@ -16,6 +16,14 @@ builder.Services.AddReport((provider, options) =>
   options.DataPath = pdfSection.GetValue<string>("DataPath") ?? "";
 });
 
+//render on a remote report server instead; the key comes from config or the
+//ReportServer__Key environment variable, never from appsettings.json
+builder.Services.AddReportServerClient(options =>
+{
+  options.Url = builder.Configuration["ReportServer:Url"] ?? "http://localhost:8088";
+  options.Key = builder.Configuration["ReportServer:Key"];
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -41,6 +49,13 @@ app.MapPost("/report/{template}", async ([FromRoute(Name = "template")] string t
   var rData = Convert.ToBase64String(pdfData);
 
   return $"data:application/pdf;base64,{rData}";
+});
+
+app.MapPost("/remote/{template}", async ([FromRoute(Name = "template")] string template, HttpRequest request, IReportServerClient reportServer) =>
+{
+  var rawRequestBody = await new StreamReader(request.Body).ReadToEndAsync();
+  var pdf = await reportServer.RenderPdf(template, rawRequestBody);
+  return Results.File(pdf, "application/pdf", $"{template}.pdf");
 });
 
 //for server deployment, download browser once per needed
